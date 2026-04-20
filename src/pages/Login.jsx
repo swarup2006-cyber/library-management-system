@@ -57,8 +57,8 @@ const portalContent = {
         body: "Review issued books, due dates, return status, and fine signals.",
       },
       {
-        title: "Dashboard OTP",
-        body: "Activate new accounts directly inside the front dashboard.",
+        title: "Account verification",
+        body: "Activate new accounts on the dedicated verification page.",
       },
     ],
   },
@@ -111,15 +111,14 @@ export default function Login({ loginType = "student" }) {
           "pendingVerificationEmail",
           email.trim().toLowerCase()
         );
-        navigate("/", {
+        navigate("/verify", {
           replace: true,
           state: {
             email: email.trim().toLowerCase(),
             from: redirectPath,
             loginRoute: isAdminLogin ? "/admin-login" : "/student-login",
-            showOtpPanel: true,
             message:
-              "Verify your account below to unlock sign-in and member access.",
+              "Verify your account to unlock sign-in and member access.",
           },
         });
         return;

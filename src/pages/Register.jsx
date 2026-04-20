@@ -31,11 +31,11 @@ const registerContent = {
     asideEyebrow: "New Member",
     asideTitle: "Set up a reader account with a cleaner activation flow.",
     asideBody:
-      "Registration now feeds directly into dashboard OTP verification so onboarding feels like one professional journey.",
+      "Registration now moves into a dedicated verification page so onboarding feels clean and professional.",
     panelEyebrow: "Create Account",
     panelTitle: "Register a library member",
     panelBody:
-      "Start with the basics and we will open the dashboard OTP panel next.",
+      "Start with the basics and we will open the verification page next.",
     emailPlaceholder: "reader@example.com",
     namePlaceholder: "Aarav Sharma",
     submitLabel: "Continue to Verification",
@@ -80,14 +80,13 @@ export default function Register({ accountType = "student" }) {
         "pendingVerificationEmail",
         form.email.trim().toLowerCase()
       );
-      navigate("/", {
+      navigate("/verify", {
         replace: true,
         state: {
           message: content.successMessage,
           devOtp: data.devOtp,
           email: form.email.trim().toLowerCase(),
           loginRoute: content.loginRoute,
-          showOtpPanel: true,
         },
       });
     } catch (error) {

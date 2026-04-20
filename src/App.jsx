@@ -17,6 +17,7 @@ function AppFrame() {
     location.pathname === "/student-login" ||
     location.pathname === "/admin-login" ||
     location.pathname === "/admin-signup" ||
+    location.pathname === "/verify" ||
     location.pathname === "/register";
   const isAdminRoute = location.pathname === "/admin";
   const isStandaloneRoute = isAuthRoute || isAdminRoute;

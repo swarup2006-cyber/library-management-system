@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import API from "../services/api";
 
@@ -7,10 +7,7 @@ const pendingVerificationKey = "pendingVerificationEmail";
 
 export default function Dashboard() {
   const location = useLocation();
-  const navigate = useNavigate();
   const { user, loading } = useContext(AuthContext);
-  const returnPath = location.state?.from || "/";
-  const loginRoute = location.state?.loginRoute || "/student-login";
   const [books, setBooks] = useState([]);
   const [borrowedBooks, setBorrowedBooks] = useState([]);
   const [users, setUsers] = useState([]);
@@ -20,16 +17,12 @@ export default function Dashboard() {
   const [verificationEmail, setVerificationEmail] = useState(
     location.state?.email || localStorage.getItem(pendingVerificationKey) || ""
   );
-  const [otp, setOtp] = useState("");
-  const [verifying, setVerifying] = useState(false);
-  const [verificationError, setVerificationError] = useState("");
   const [verificationMessage, setVerificationMessage] = useState(
     location.state?.message || ""
   );
   const [warningMessage, setWarningMessage] = useState(
     location.state?.warningMessage || ""
   );
-  const [devOtp, setDevOtp] = useState(location.state?.devOtp || "");
 
   useEffect(() => {
     const stateEmail = location.state?.email?.trim().toLowerCase();
@@ -50,9 +43,6 @@ export default function Dashboard() {
       setWarningMessage(location.state.warningMessage);
     }
 
-    if (location.state?.devOtp) {
-      setDevOtp(location.state.devOtp);
-    }
   }, [location.state, user]);
 
   useEffect(() => {
@@ -123,8 +113,6 @@ export default function Dashboard() {
   ).length;
   const recentBooks = books.slice(0, 4);
   const bookNameList = books.slice(0, 10);
-  const featuredBook = books[0] || null;
-  const showActivationPanel = !user;
   const overdueAlerts = (user?.role === "admin" ? transactions : borrowedBooks).filter(
     (record) => record.status === "Overdue"
   ).length;
@@ -144,8 +132,8 @@ export default function Dashboard() {
     },
     {
       title: user ? "Transactions" : "Authentication",
-      value: user ? activeLoans + returnedLoans : "OTP",
-      hint: user ? "Issue, return, due date, and history" : "Login, signup, and dashboard OTP",
+      value: user ? activeLoans + returnedLoans : "Login",
+      hint: user ? "Issue, return, due date, and history" : "Student and admin access",
     },
     {
       title: user?.role === "admin" ? "User Management" : "Notifications",
@@ -158,51 +146,7 @@ export default function Dashboard() {
   ];
   const memberStateLabel = user
     ? "Member session"
-    : verificationEmail
-      ? "Activation pending"
-      : "Guest workspace";
-
-  const submitVerification = async (e) => {
-    e.preventDefault();
-
-    if (!verificationEmail.trim() || !otp.trim()) {
-      setVerificationError("Enter the registered email and OTP to continue.");
-      return;
-    }
-
-    try {
-      const normalizedEmail = verificationEmail.trim().toLowerCase();
-
-      setVerifying(true);
-      setVerificationError("");
-      setVerificationMessage("");
-
-      await API.post("/verify-otp", {
-        email: normalizedEmail,
-        otp: otp.trim(),
-      });
-
-      localStorage.removeItem(pendingVerificationKey);
-      setDevOtp("");
-      setOtp("");
-
-      navigate(loginRoute, {
-        replace: true,
-        state: {
-          from: returnPath,
-          verifiedEmail: normalizedEmail,
-          message:
-            "Account verified. Sign in to enter the circulation dashboard.",
-        },
-      });
-    } catch (error) {
-      setVerificationError(
-        error.response?.data?.message || "Unable to verify OTP."
-      );
-    } finally {
-      setVerifying(false);
-    }
-  };
+    : "Access portals";
 
   return (
     <>
@@ -218,7 +162,7 @@ export default function Dashboard() {
               : user
                 ? `Welcome back, ${user.name}. Your dashboard is ready for circulation, returns, and collection oversight.`
                 : verificationEmail
-                  ? "Your account is almost ready. Complete OTP verification below to unlock sign-in and borrowing."
+                  ? "Your account is almost ready. Complete verification to unlock sign-in and borrowing."
                   : "A clean overview of collection status, availability, account activation, and recent library activity."}
           </p>
           {verificationMessage && (
@@ -247,39 +191,27 @@ export default function Dashboard() {
             </article>
             <article className="stat-card accent">
               <span>{memberStateLabel}</span>
-              <strong>{user ? activeLoans : verificationEmail ? "OTP" : "Open"}</strong>
+              <strong>{user ? activeLoans : "Login"}</strong>
               <p>
                 {user
                   ? `${returnedLoans} returned items in your account history.`
-                  : verificationEmail
-                    ? "Verification is waiting below in the dashboard."
-                    : "Create or activate a member account to begin borrowing."}
+                  : "Use the centered login buttons below to enter the right portal."}
               </p>
             </article>
           </div>
-
-          <article className="hero-callout">
-            <span className="eyebrow">Dashboard Focus</span>
-            <h2>
-              {featuredBook ? `Featured title: ${featuredBook.title}` : "Built for daily desk operations"}
-            </h2>
-            <div className="hero-callout-list">
-              <div>
-                <strong>Visible book names</strong>
-                <p>
-                  {featuredBook
-                    ? `${featuredBook.author} is currently leading the catalog view, with book names surfaced directly on the dashboard.`
-                    : "Book titles will appear here as soon as the collection is available."}
-                </p>
-              </div>
-              <div>
-                <strong>Live circulation snapshot</strong>
-                <p>Availability, member activity, and collection movement stay visible without leaving the home screen.</p>
-              </div>
-            </div>
-          </article>
         </div>
       </section>
+
+      {!user && (
+        <section className="dashboard-login-strip" aria-label="Login portals">
+          <Link to="/student-login" className="primary-button">
+            Student Login
+          </Link>
+          <Link to="/admin-login" className="ghost-button subtle">
+            Admin Login
+          </Link>
+        </section>
+      )}
 
       <section className="page-section dashboard-grid">
         <article className="surface-card">
@@ -321,126 +253,7 @@ export default function Dashboard() {
           )}
         </article>
 
-        <article className="surface-card">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">Workflow</span>
-              <h2>{user ? "Your account activity" : "Activation and access flow"}</h2>
-            </div>
-          </div>
-          <div className="feature-list">
-            <div className="feature-item">
-              <span className="feature-number">01</span>
-              <div>
-                <h3>{user ? "Borrow with confidence" : "Register, verify, sign in"}</h3>
-                <p>
-                  {user
-                    ? "Your dashboard shows active and completed loans in the same circulation workspace."
-                    : "The new member journey now keeps OTP verification anchored inside the dashboard."}
-                </p>
-              </div>
-            </div>
-            <div className="feature-item">
-              <span className="feature-number">02</span>
-              <div>
-                <h3>{user ? "Track returns clearly" : "Catalog-first visibility"}</h3>
-                <p>
-                  {user
-                    ? `${returnedLoans} return records are currently visible in your history.`
-                    : "Availability, authorship, and onboarding actions are visible at a glance."}
-                </p>
-              </div>
-            </div>
-            <div className="feature-item">
-              <span className="feature-number">03</span>
-              <div>
-                <h3>{user ? "Move between tasks faster" : "Professional member activation"}</h3>
-                <p>
-                  {user
-                    ? "Open loans, review books, or continue into operations without switching contexts."
-                    : "Unverified users are guided directly to OTP activation instead of hitting a dead end."}
-                </p>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        {showActivationPanel ? (
-          <article className="surface-card dashboard-otp-card">
-            <div className="section-heading">
-              <div>
-                <span className="eyebrow">Dashboard OTP</span>
-                <h2>Activate your account from inside the dashboard</h2>
-              </div>
-              <span className="status-pill warning">
-                {verificationEmail ? "Awaiting verification" : "Ready for setup"}
-              </span>
-            </div>
-
-            <p className="section-copy">
-              Finish account activation here, then sign in to borrow books and
-              manage returns from the same workspace.
-            </p>
-
-            {verificationError && (
-              <p className="form-message error">{verificationError}</p>
-            )}
-
-            <form onSubmit={submitVerification} className="otp-grid">
-              <label>
-                <span>Registered email</span>
-                <input
-                  type="email"
-                  value={verificationEmail}
-                  placeholder="reader@example.com"
-                  onChange={(e) => setVerificationEmail(e.target.value)}
-                />
-              </label>
-              <label>
-                <span>One-time password</span>
-                <input
-                  value={otp}
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="Enter 6-digit OTP"
-                  className="otp-input"
-                  onChange={(e) =>
-                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                />
-              </label>
-              <div className="otp-actions">
-                <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={verifying}
-                >
-                  {verifying ? "Verifying..." : "Verify and Continue"}
-                </button>
-                <Link to="/register" className="ghost-button muted-action">
-                  Register Again
-                </Link>
-              </div>
-            </form>
-
-            <div className="otp-support-grid">
-              <div className="otp-support-card">
-                <strong>Next step after verification</strong>
-                <p>You will be taken straight to the correct login portal with your email ready to go.</p>
-              </div>
-              <div className="otp-support-card">
-                <strong>Need a fresh code?</strong>
-                <p>OTP expires after 10 minutes. Register again if your current code is no longer valid.</p>
-              </div>
-              {devOtp && (
-                <div className="otp-support-card otp-support-card-accent">
-                  <strong>Development OTP</strong>
-                  <p>Use <span className="otp-code">{devOtp}</span> for local testing.</p>
-                </div>
-              )}
-            </div>
-          </article>
-        ) : (
+        {user && (
           <article className="surface-card dashboard-member-card">
             <div className="section-heading">
               <div>

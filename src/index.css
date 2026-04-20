@@ -576,6 +576,16 @@ select:focus {
   margin-top: 1.4rem;
 }
 
+.dashboard-login-strip {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  max-width: 520px;
+  margin: 1.25rem auto 0;
+}
+
 .hero-panel {
   display: grid;
   align-items: stretch;
