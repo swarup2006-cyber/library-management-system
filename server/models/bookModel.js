@@ -4,6 +4,11 @@ const bookSchema = new mongoose.Schema(
   {
     title: String,
     author: String,
+    publisher: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     category: {
       type: String,
       default: "General",
@@ -18,6 +23,16 @@ const bookSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
+    },
+    totalStock: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+    availableStock: {
+      type: Number,
+      default: 1,
+      min: 0,
     },
     available: {
       type: Boolean,

@@ -16,8 +16,15 @@ exports.borrowBook = async (req, res) => {
     return res.status(404).json({ message: "Book not found." });
   }
 
-  if (!book.available) {
-    return res.status(400).json({ message: "This book is already borrowed." });
+  const availableStock =
+    typeof book.availableStock === "number"
+      ? book.availableStock
+      : book.available
+        ? book.totalStock || 1
+        : 0;
+
+  if (availableStock <= 0) {
+    return res.status(400).json({ message: "This book is currently out of stock." });
   }
 
   const record = await Borrow.create({
@@ -27,7 +34,9 @@ exports.borrowBook = async (req, res) => {
     dueDate: new Date(Date.now() + BORROW_WINDOW_DAYS * 24 * 60 * 60 * 1000),
   });
 
-  book.available = false;
+  book.totalStock = book.totalStock || 1;
+  book.availableStock = Math.max(availableStock - 1, 0);
+  book.available = book.availableStock > 0;
   await book.save();
 
   const populatedRecord = await Borrow.findById(record._id).populate("book");
@@ -66,7 +75,21 @@ exports.returnBook = async (req, res) => {
   record.fineAtReturn = serializedRecord.fineAmount;
   await record.save();
 
-  await Book.findByIdAndUpdate(record.book, { available: true });
+  const book = await Book.findById(record.book);
+
+  if (book) {
+    const totalStock = book.totalStock || 1;
+    const currentStock =
+      typeof book.availableStock === "number"
+        ? book.availableStock
+        : book.available
+          ? totalStock
+          : 0;
+
+    book.availableStock = Math.min(currentStock + 1, totalStock);
+    book.available = book.availableStock > 0;
+    await book.save();
+  }
 
   res.json({
     success: true,

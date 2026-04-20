@@ -31,8 +31,8 @@ export default function Navbar() {
               ? [
                   {
                     to: "/admin",
-                    label: "Admin Desk",
-                    description: "Users, catalog, and activity",
+                    label: "Admin Portal",
+                    description: "Books, users, reports, and settings",
                   },
                 ]
               : []),
