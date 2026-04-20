@@ -40,7 +40,7 @@ export default function Books() {
 
   const borrowBook = async (bookId) => {
     if (!user) {
-      navigate("/login", { state: { from: "/books" } });
+      navigate("/student-login", { state: { from: "/books" } });
       return;
     }
 
@@ -141,7 +141,7 @@ export default function Books() {
                 Review My Loans
               </Link>
             ) : (
-              <Link to="/login" className="ghost-button subtle">
+              <Link to="/student-login" className="ghost-button subtle">
                 Sign in to issue books
               </Link>
             )}
@@ -449,7 +449,7 @@ export default function Books() {
                     </button>
                   )}
                   {!user && (
-                    <Link to="/login" className="ghost-button">
+                    <Link to="/student-login" className="ghost-button">
                       Login for borrowing
                     </Link>
                   )}

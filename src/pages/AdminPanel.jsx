@@ -237,6 +237,9 @@ export default function AdminPanel() {
   const returnRecords = transactions.filter((item) => item.status === "Returned").length;
   const issueRecords = transactions.length;
   const categories = new Set(books.map((book) => book.category || "General")).size;
+  const currentlyIssuedBooks = transactions.filter(
+    (item) => item.status === "Borrowed" || item.status === "Overdue"
+  );
 
   const moduleCards = useMemo(
     () => [
@@ -378,34 +381,104 @@ export default function AdminPanel() {
 
   return (
     <>
-      <section className="page-hero compact admin-portal-hero">
-        <div className="hero-copy">
-          <span className="eyebrow">Admin Portal</span>
-          <h1>Control books, users, reports, notifications, settings, and security from one portal.</h1>
-          <p>
-            This portal brings the requested admin dashboard, book management,
-            user management, issue and return records, reports, alerts, and
-            access-control surfaces into a single responsive workspace.
-          </p>
-        </div>
-        <div className="hero-panel">
-          <div className="portal-kpi-grid">
-            {moduleCards.map((card) => (
-              <article key={card.title} className="portal-kpi-card">
-                <span>{card.title}</span>
-                <strong>{card.value}</strong>
-                <p>{card.hint}</p>
-              </article>
-            ))}
+      <section className="classic-admin-dashboard">
+        <div className="classic-admin-topbar">
+          <strong>Library Admin</strong>
+          <div>
+            <span>Welcome, Admin</span>
+            <span>Secure portal</span>
           </div>
+        </div>
+
+        <article className="classic-title-panel">
+          <span className="eyebrow">Admin Dashboard</span>
+          <h1>Dashboard</h1>
+        </article>
+
+        <div className="classic-stat-row">
+          <article className="classic-stat-card total-card">
+            <span>Total Books</span>
+            <strong>{books.length}</strong>
+            <p>{totalStock} stock units</p>
+          </article>
+          <article className="classic-stat-card assigned-card">
+            <span>Books Assigned</span>
+            <strong>{activeTransactions}</strong>
+            <p>Currently issued</p>
+          </article>
+          <article className="classic-stat-card returned-card">
+            <span>Books Returned</span>
+            <strong>{returnRecords}</strong>
+            <p>Completed returns</p>
+          </article>
+          <article className="classic-stat-card users-card">
+            <span>Users</span>
+            <strong>{users.length}</strong>
+            <p>{blockedUsers} blocked</p>
+          </article>
         </div>
       </section>
 
       {message && <p className="form-message success">{message}</p>}
       {error && <p className="form-message error">{error}</p>}
 
+      <section className="page-section" id="issue-return">
+        <article className="surface-card issued-table-card">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Issue & Return</span>
+              <h2>Currently Issued Books</h2>
+            </div>
+          </div>
+
+          {currentlyIssuedBooks.length === 0 ? (
+            <div className="empty-state">
+              <h3>No books are currently issued.</h3>
+              <p>Issued books will appear here with title, author, category, ISBN, and due date.</p>
+            </div>
+          ) : (
+            <div className="table-shell admin-issued-table">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Title</th>
+                    <th>Author</th>
+                    <th>Category</th>
+                    <th>ISBN</th>
+                    <th>Due Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentlyIssuedBooks.map((item, index) => (
+                    <tr key={item._id}>
+                      <td>
+                        <span className="row-number">{index + 1}</span>
+                      </td>
+                      <td>{item.book?.title || "Unknown book"}</td>
+                      <td>{item.book?.author || "Unknown author"}</td>
+                      <td>
+                        <span className="category-badge">
+                          {item.book?.category || "General"}
+                        </span>
+                      </td>
+                      <td>{item.book?.isbn || "Pending"}</td>
+                      <td>
+                        {item.dueDate
+                          ? new Date(item.dueDate).toLocaleDateString()
+                          : "Not set"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </article>
+      </section>
+
       <section className="page-section admin-portal-grid">
-        <article className="surface-card form-panel portal-card">
+        <article className="surface-card form-panel portal-card" id="book-form">
           <span className="eyebrow">Book Management</span>
           <h2>{editingBookId ? "Update book" : "Add book"}</h2>
           <p className="section-copy">
@@ -513,7 +586,7 @@ export default function AdminPanel() {
           </form>
         </article>
 
-        <article className="surface-card form-panel portal-card">
+        <article className="surface-card form-panel portal-card" id="user-form">
           <span className="eyebrow">User Management</span>
           <h2>{editingUserId ? "Update user" : "Add user"}</h2>
           <p className="section-copy">
@@ -676,7 +749,7 @@ export default function AdminPanel() {
       </section>
 
       <section className="page-section operations-data-grid">
-        <article className="surface-card collection-panel">
+        <article className="surface-card collection-panel" id="book-inventory">
           <div className="section-heading">
             <div>
               <span className="eyebrow">Book Inventory</span>
@@ -744,7 +817,7 @@ export default function AdminPanel() {
           )}
         </article>
 
-        <article className="surface-card">
+        <article className="surface-card" id="user-list">
           <div className="section-heading">
             <div>
               <span className="eyebrow">User Management</span>

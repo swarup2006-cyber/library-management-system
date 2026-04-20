@@ -6,17 +6,35 @@ const generateOtp = () =>
 
 // Register
 exports.register = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, role, adminInviteCode } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: "Name, email, and password are required." });
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+  const requestedRole = role === "admin" ? "admin" : "user";
   const existingUser = await User.findOne({ email: normalizedEmail });
 
   if (existingUser && existingUser.isVerified) {
     return res.status(400).json({ message: "An account with this email already exists." });
+  }
+
+  if (requestedRole === "admin") {
+    const verifiedAdminCount = await User.countDocuments({
+      role: "admin",
+      isVerified: true,
+    });
+    const configuredInviteCode = process.env.ADMIN_SIGNUP_CODE;
+    const hasValidInviteCode =
+      configuredInviteCode && adminInviteCode === configuredInviteCode;
+
+    if (verifiedAdminCount > 0 && !hasValidInviteCode) {
+      return res.status(403).json({
+        message:
+          "Admin signup requires a valid invite code after the first administrator is created.",
+      });
+    }
   }
 
   const otp = generateOtp();
@@ -25,6 +43,7 @@ exports.register = async (req, res) => {
   user.name = name.trim();
   user.email = normalizedEmail;
   user.password = password;
+  user.role = requestedRole;
   user.isVerified = false;
   user.verificationOtp = otp;
   user.verificationOtpExpires = new Date(Date.now() + 10 * 60 * 1000);

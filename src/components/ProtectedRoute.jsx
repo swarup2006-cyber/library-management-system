@@ -12,7 +12,17 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    const loginPath = allowedRoles?.includes("admin")
+      ? "/admin-login"
+      : "/student-login";
+
+    return (
+      <Navigate
+        to={loginPath}
+        replace
+        state={{ from: `${location.pathname}${location.search}` }}
+      />
+    );
   }
 
   if (allowedRoles?.length && !allowedRoles.includes(user.role)) {

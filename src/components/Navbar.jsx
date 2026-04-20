@@ -1,57 +1,76 @@
 import { useContext } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 
 export default function Navbar() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useContext(AuthContext);
 
   const handleLogout = async () => {
+    const targetLoginPath = user?.role === "admin" ? "/admin-login" : "/student-login";
+
     await logout();
-    navigate("/login");
+    navigate(targetLoginPath);
   };
 
-  const navigationSections = [
-    {
-      title: "Core Modules",
-      items: [
-        { to: "/", label: "Dashboard", description: "Overview and analytics" },
-        { to: "/books", label: "Book Search", description: "Browse and filter catalog" },
-        user
-          ? { to: "/borrow", label: "Transactions", description: "Issue, return, and dues" }
-          : null,
-      ].filter(Boolean),
-    },
-    {
-      title: "Account",
-      items: user
-        ? [
-            { to: "/profile", label: "Profile", description: "Profile and security" },
-            ...(user.role === "admin"
-              ? [
-                  {
-                    to: "/admin",
-                    label: "Admin Portal",
-                    description: "Books, users, reports, and settings",
-                  },
-                ]
-              : []),
-          ]
-        : [
-            { to: "/login", label: "Login", description: "Secure sign-in" },
-            { to: "/register", label: "Signup", description: "Member onboarding" },
+  const isAdmin = user?.role === "admin";
+  const navigationSections = isAdmin
+    ? [
+        {
+          title: "Library",
+          items: [
+            { to: "/admin", label: "Dashboard", description: "Admin dashboard" },
+            { href: "/admin#issue-return", label: "Assign Book", description: "Issue book" },
+            { href: "/admin#issue-return", label: "Return Book", description: "Return workflow" },
+            { href: "/admin#book-inventory", label: "Books", description: "Book catalog" },
+            { href: "/admin#book-form", label: "Add Book", description: "New inventory" },
+            { href: "/admin#user-list", label: "Users", description: "User list" },
+            { href: "/admin#user-form", label: "Add User", description: "New account" },
           ],
-    },
-  ];
+        },
+        {
+          title: "Account",
+          items: [
+            { to: "/", label: "Main Dashboard", description: "Reader overview" },
+            { to: "/profile", label: "Profile", description: "Profile and security" },
+          ],
+        },
+      ]
+    : [
+        {
+          title: "Core Modules",
+          items: [
+            { to: "/", label: "Dashboard", description: "Overview and analytics" },
+            { to: "/books", label: "Book Search", description: "Browse and filter catalog" },
+            user
+              ? { to: "/borrow", label: "Transactions", description: "Issue, return, and dues" }
+              : null,
+          ].filter(Boolean),
+        },
+        {
+          title: "Account",
+          items: user
+            ? [
+                { to: "/profile", label: "Profile", description: "Profile and security" },
+              ]
+            : [
+                { to: "/student-login", label: "Student Login", description: "Reader access" },
+                { to: "/admin-login", label: "Admin Login", description: "Staff portal" },
+                { to: "/admin-signup", label: "Admin Signup", description: "Create staff account" },
+                { to: "/register", label: "Signup", description: "Member onboarding" },
+              ],
+        },
+      ];
 
   return (
-    <aside className="navbar workspace-sidebar">
+    <aside className={`navbar workspace-sidebar ${isAdmin ? "admin-sidebar" : ""}`}>
       <div className="sidebar-top">
         <NavLink to="/" className="brand-lockup">
           <span className="brand-seal">LM</span>
           <span className="brand-copy">
-            <strong>Library Management</strong>
-            <small>Professional circulation workspace</small>
+            <strong>{isAdmin ? "Library" : "Library Management"}</strong>
+            <small>{isAdmin ? "Admin dashboard" : "Professional circulation workspace"}</small>
           </span>
         </NavLink>
       </div>
@@ -72,17 +91,26 @@ export default function Navbar() {
             <span className="sidebar-section-title">{section.title}</span>
             <div className="sidebar-links">
               {section.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === "/"}
-                  className={({ isActive }) =>
-                    isActive ? "sidebar-link active" : "sidebar-link"
-                  }
-                >
-                  <strong>{item.label}</strong>
-                  <small>{item.description}</small>
-                </NavLink>
+                item.href ? (
+                  <a key={item.href + item.label} href={item.href} className="sidebar-link">
+                    <strong>{item.label}</strong>
+                    <small>{item.description}</small>
+                  </a>
+                ) : (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === "/"}
+                    className={({ isActive }) =>
+                      isActive || (item.to === "/admin" && location.pathname === "/admin")
+                        ? "sidebar-link active"
+                        : "sidebar-link"
+                    }
+                  >
+                    <strong>{item.label}</strong>
+                    <small>{item.description}</small>
+                  </NavLink>
+                )
               ))}
             </div>
           </section>
@@ -112,8 +140,11 @@ export default function Navbar() {
           </>
         ) : (
           <div className="sidebar-footer-actions">
-            <NavLink to="/login" className="ghost-button">
-              Login
+            <NavLink to="/student-login" className="ghost-button">
+              Student Login
+            </NavLink>
+            <NavLink to="/admin-login" className="ghost-button muted-action">
+              Admin Login
             </NavLink>
             <NavLink to="/register" className="primary-button">
               Signup

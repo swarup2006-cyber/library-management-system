@@ -10,6 +10,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user, loading } = useContext(AuthContext);
   const returnPath = location.state?.from || "/";
+  const loginRoute = location.state?.loginRoute || "/student-login";
   const [books, setBooks] = useState([]);
   const [borrowedBooks, setBorrowedBooks] = useState([]);
   const [users, setUsers] = useState([]);
@@ -185,7 +186,7 @@ export default function Dashboard() {
       setDevOtp("");
       setOtp("");
 
-      navigate("/login", {
+      navigate(loginRoute, {
         replace: true,
         state: {
           from: returnPath,
@@ -207,9 +208,9 @@ export default function Dashboard() {
     <>
       <section className="page-hero dashboard-hero">
         <div className="hero-copy">
-          <span className="eyebrow">Operations Dashboard</span>
+          <span className="eyebrow">Library Management System</span>
           <h1>
-            A refined library dashboard for member access, circulation, and visible book tracking.
+            Professional library management for admins, students, books, and circulation.
           </h1>
           <p>
             {loading || overviewLoading
@@ -218,19 +219,8 @@ export default function Dashboard() {
                 ? `Welcome back, ${user.name}. Your dashboard is ready for circulation, returns, and collection oversight.`
                 : verificationEmail
                   ? "Your account is almost ready. Complete OTP verification below to unlock sign-in and borrowing."
-                  : "Review the collection, onboard readers, and activate new accounts through one cleaner dashboard experience."}
+                  : "A clean overview of collection status, availability, account activation, and recent library activity."}
           </p>
-          <div className="hero-actions">
-            <Link to={user ? "/borrow" : "/login"} className="primary-button">
-              {user ? "Open My Loans" : "Member Login"}
-            </Link>
-            <Link
-              to={user ? "/books" : "/register"}
-              className="ghost-button subtle"
-            >
-              {user ? "Review Catalog" : "Register Member"}
-            </Link>
-          </div>
           {verificationMessage && (
             <p className="form-message success">{verificationMessage}</p>
           )}
@@ -314,9 +304,8 @@ export default function Dashboard() {
                 <article key={book._id} className="dashboard-book-card">
                   <div>
                     <h3>{book.title}</h3>
-                    <p>
-                      {book.author}
-                      {book.category ? ` • ${book.category}` : ""}
+                    <p className="dashboard-book-meta">
+                      {book.category ? `${book.author} - ${book.category}` : book.author}
                     </p>
                   </div>
                   <span
@@ -437,7 +426,7 @@ export default function Dashboard() {
             <div className="otp-support-grid">
               <div className="otp-support-card">
                 <strong>Next step after verification</strong>
-                <p>You will be taken straight to the login page with your email ready to go.</p>
+                <p>You will be taken straight to the correct login portal with your email ready to go.</p>
               </div>
               <div className="otp-support-card">
                 <strong>Need a fresh code?</strong>
