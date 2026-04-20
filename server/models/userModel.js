@@ -2,15 +2,43 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-const userSchema = new mongoose.Schema({
-  name: String,
-  email: String,
-  password: String,
-  role: {
-    type: String,
-    default: "user",
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
+    },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationOtp: String,
+    verificationOtpExpires: Date,
   },
-});
+  {
+    timestamps: true,
+  }
+);
 
 // hash password
 userSchema.pre("save", async function () {

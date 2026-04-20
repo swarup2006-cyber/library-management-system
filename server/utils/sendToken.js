@@ -1,5 +1,12 @@
 module.exports = (user, statusCode, res) => {
   const token = user.generateToken();
+  const safeUser = {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    isVerified: user.isVerified,
+  };
 
   res
     .status(statusCode)
@@ -9,6 +16,6 @@ module.exports = (user, statusCode, res) => {
     .json({
       success: true,
       token,
-      user,
+      user: safeUser,
     });
 };
