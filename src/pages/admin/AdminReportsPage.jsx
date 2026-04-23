@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import PageHeader from "../../components/common/PageHeader";
 import StatCard from "../../components/common/StatCard";
 import DataTable from "../../components/tables/DataTable";
+import StatusBadge from "../../components/common/StatusBadge";
 import libraryService from "../../services/libraryService";
 import { useToast } from "../../context/ToastContext";
-import { formatCurrency, formatDate, getStatusBadge } from "../../utils/formatters";
+import { formatCurrency, formatDate } from "../../utils/formatters";
 
 export default function AdminReportsPage() {
   const { showToast } = useToast();
@@ -59,9 +60,7 @@ export default function AdminReportsPage() {
     {
       key: "status",
       label: "Status",
-      render: (row) => (
-        <span className={`badge text-bg-${getStatusBadge(row.status)}`}>{row.status}</span>
-      ),
+      render: (row) => <StatusBadge status={row.status} />,
     },
     {
       key: "fineAmount",

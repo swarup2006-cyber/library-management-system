@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Loader from "../../components/Loader";
-import PageHeader from "../../components/common/PageHeader";
+import DashboardHero from "../../components/common/DashboardHero";
 import StatCard from "../../components/common/StatCard";
+import StatusBadge from "../../components/common/StatusBadge";
 import libraryService from "../../services/libraryService";
-import { formatCurrency, formatDate, getStatusBadge } from "../../utils/formatters";
+import { formatCurrency, formatDate } from "../../utils/formatters";
 
 export default function StudentDashboardPage() {
   const [data, setData] = useState(null);
@@ -49,59 +50,90 @@ export default function StudentDashboardPage() {
 
   return (
     <>
-      <PageHeader
+      <DashboardHero
         eyebrow="Student Dashboard"
-        title={`Welcome back, ${data.user.name}`}
-        description="Track issued books, due dates, fines, recommendations, and live notifications."
+        title="Discover Your Next Great Read"
+        description="Search the full BookHeaven catalog, keep due dates under control, and track fines and returns from a cleaner dark workspace."
         actions={
           <>
-            <Link to="/student/books" className="btn btn-primary">
-              Browse books
+            <Link to="/student/books" className="btn btn-primary hero-button">
+              Explore books
             </Link>
-            <Link to="/student/history" className="btn btn-outline-secondary">
-              View history
+            <Link to="/student/history" className="btn btn-outline-light hero-button">
+              Open issue history
             </Link>
           </>
         }
+        aside={
+          <div className="glass-panel">
+            <p className="text-uppercase small fw-semibold text-info mb-2">Live snapshot</p>
+            <h2 className="h4 mb-3">{data.user.name}</h2>
+            <div className="d-grid gap-3">
+              {data.activeLoans.slice(0, 3).map((loan) => (
+                <div key={loan.id} className="glass-list-item">
+                  <div>
+                    <strong>{loan.book?.title}</strong>
+                    <p className="small text-body-secondary mb-0">
+                      Due {formatDate(loan.dueAt)}
+                    </p>
+                  </div>
+                  <StatusBadge status={loan.status} />
+                </div>
+              ))}
+              {!data.activeLoans.length ? (
+                <div className="glass-list-item">
+                  <p className="small mb-0 text-body-secondary">
+                    No issued books right now. The catalog is ready when you are.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        }
       />
 
-      {error ? <div className="alert alert-danger">{error}</div> : null}
+      {error ? <div className="alert alert-danger mt-4">{error}</div> : null}
 
-      <div className="row g-3 mb-4">
+      <div className="row g-3 mt-1 mb-4">
         <StatCard
-          label="Books issued"
+          label="Total Books"
+          value={data.summary.totalBooks}
+          helper="Titles available in the BookHeaven catalog"
+          accent="primary"
+          icon="books"
+        />
+        <StatCard
+          label="Issued Books"
           value={data.summary.booksIssued}
-          helper="Active books currently in your account"
-        />
-        <StatCard
-          label="Due soon"
-          value={data.summary.dueSoon}
-          helper="Titles that need attention in the next few days"
+          helper="Loans still active or awaiting approval"
           accent="warning"
+          icon="issue"
         />
         <StatCard
-          label="Overdue"
-          value={data.summary.overdue}
-          helper="Books already past the due date"
-          accent="danger"
-        />
-        <StatCard
-          label="Fine due"
-          value={formatCurrency(data.summary.fineDue)}
-          helper="Estimated fines across active and returned loans"
+          label="Returned Books"
+          value={data.summary.returnedBooks}
+          helper="Books completed in your reading history"
           accent="success"
+          icon="return"
+        />
+        <StatCard
+          label="Fine Amount"
+          value={formatCurrency(data.summary.fineDue)}
+          helper="Current fine snapshot across your records"
+          accent="danger"
+          icon="fine"
         />
       </div>
 
       <div className="row g-4">
-        <div className="col-xl-8">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
+        <div className="col-xl-7">
+          <div className="card border-0 shadow-sm glass-surface interactive-surface h-100">
+            <div className="card-body p-4">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <div>
-                  <h3 className="h5 mb-1">Current loans</h3>
+                  <h3 className="h5 mb-1">Current reading desk</h3>
                   <p className="text-body-secondary small mb-0">
-                    Active books, due dates, and fines.
+                    Active issues, return requests, due dates, and frozen fines.
                   </p>
                 </div>
                 <Link to="/student/history" className="btn btn-sm btn-outline-secondary">
@@ -111,48 +143,35 @@ export default function StudentDashboardPage() {
 
               <div className="d-grid gap-3">
                 {data.activeLoans.slice(0, 4).map((loan) => (
-                  <div key={loan.id} className="card border shadow-sm">
-                    <div className="card-body d-flex flex-column flex-lg-row justify-content-between gap-3">
-                      <div>
-                        <h4 className="h6 mb-1">{loan.book?.title}</h4>
-                        <p className="text-body-secondary small mb-1">{loan.book?.authorName}</p>
-                        <div className="d-flex flex-wrap gap-2">
-                          <span className={`badge text-bg-${getStatusBadge(loan.status)}`}>
-                            {loan.status}
-                          </span>
-                          <span className="badge text-bg-light">
-                            Due {formatDate(loan.dueAt)}
-                          </span>
-                        </div>
+                  <div key={loan.id} className="glass-list-item">
+                    <div>
+                      <strong>{loan.book?.title}</strong>
+                      <p className="small text-body-secondary mb-1">{loan.book?.authorName}</p>
+                      <div className="d-flex flex-wrap gap-2">
+                        <StatusBadge status={loan.status} />
+                        <span className="meta-pill">Issued {formatDate(loan.issuedAt)}</span>
+                        <span className="meta-pill">Due {formatDate(loan.dueAt)}</span>
                       </div>
-                      <div className="text-lg-end">
-                        <p className="small text-body-secondary mb-1">
-                          Issued on {formatDate(loan.issuedAt)}
-                        </p>
-                        <p className="small mb-0">Fine: {formatCurrency(loan.fineAmount)}</p>
-                      </div>
+                    </div>
+                    <div className="text-lg-end">
+                      <p className="small text-body-secondary mb-1">Fine</p>
+                      <strong>{formatCurrency(loan.fineAmount)}</strong>
                     </div>
                   </div>
                 ))}
-
-                {!data.activeLoans.length ? (
-                  <div className="alert alert-light border mb-0">
-                    No active loans. Browse the catalog and issue a book to get started.
-                  </div>
-                ) : null}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="col-xl-4">
-          <div className="card border-0 shadow-sm h-100">
-            <div className="card-body">
+        <div className="col-xl-5">
+          <div className="card border-0 shadow-sm glass-surface interactive-surface h-100">
+            <div className="card-body p-4">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <div>
-                  <h3 className="h5 mb-1">Notifications</h3>
+                  <h3 className="h5 mb-1">Alerts and notifications</h3>
                   <p className="text-body-secondary small mb-0">
-                    Due reminders and library updates.
+                    Quick signals from the library desk.
                   </p>
                 </div>
                 <Link to="/student/notifications" className="btn btn-sm btn-outline-secondary">
@@ -162,48 +181,38 @@ export default function StudentDashboardPage() {
 
               <div className="d-grid gap-3">
                 {data.notifications.map((item) => (
-                  <div key={item.id} className="card border shadow-sm">
-                    <div className="card-body">
-                      <div className="d-flex justify-content-between gap-3">
-                        <div>
-                          <h4 className="h6 mb-1">{item.title}</h4>
-                          <p className="text-body-secondary small mb-1">{item.message}</p>
-                        </div>
-                        <span className={`badge text-bg-${getStatusBadge(item.type)}`}>
-                          {item.type}
-                        </span>
-                      </div>
+                  <div key={item.id} className="glass-list-item">
+                    <div>
+                      <strong>{item.title}</strong>
+                      <p className="small text-body-secondary mb-0">{item.message}</p>
                     </div>
+                    <StatusBadge status={item.type} />
                   </div>
                 ))}
-
-                {!data.notifications.length ? (
-                  <div className="alert alert-light border mb-0">No new notifications.</div>
-                ) : null}
               </div>
             </div>
           </div>
         </div>
 
         <div className="col-12">
-          <div className="card border-0 shadow-sm">
-            <div className="card-body">
+          <div className="card border-0 shadow-sm glass-surface interactive-surface">
+            <div className="card-body p-4">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <div>
                   <h3 className="h5 mb-1">Recommended available books</h3>
                   <p className="text-body-secondary small mb-0">
-                    Titles you can issue right away.
+                    A more visual shelf with clean spacing, subtle motion, and fast access.
                   </p>
                 </div>
                 <Link to="/student/books" className="btn btn-sm btn-outline-secondary">
-                  See all books
+                  View full shelf
                 </Link>
               </div>
 
               <div className="row g-3">
                 {data.recommendedBooks.map((book) => (
                   <div key={book.id} className="col-md-6 col-xl-3">
-                    <div className="card border shadow-sm h-100">
+                    <div className="card border-0 h-100 recommendation-card interactive-surface">
                       <div className="card-body">
                         <span
                           className="book-swatch mb-3"

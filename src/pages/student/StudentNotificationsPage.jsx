@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import Loader from "../../components/Loader";
 import PageHeader from "../../components/common/PageHeader";
+import StatusBadge from "../../components/common/StatusBadge";
 import libraryService from "../../services/libraryService";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
-import { formatDate, getStatusBadge } from "../../utils/formatters";
+import { formatDate } from "../../utils/formatters";
 
 export default function StudentNotificationsPage() {
   const { refreshUser } = useAuth();
@@ -73,9 +74,7 @@ export default function StudentNotificationsPage() {
               <div className="card-body d-flex flex-column flex-lg-row justify-content-between gap-3">
                 <div>
                   <div className="d-flex align-items-center gap-2 mb-2">
-                    <span className={`badge text-bg-${getStatusBadge(notification.type)}`}>
-                      {notification.type}
-                    </span>
+                    <StatusBadge status={notification.type} />
                     {!notification.read ? (
                       <span className="badge text-bg-primary">Unread</span>
                     ) : null}

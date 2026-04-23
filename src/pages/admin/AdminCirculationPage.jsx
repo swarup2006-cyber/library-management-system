@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import PageHeader from "../../components/common/PageHeader";
 import DataTable from "../../components/tables/DataTable";
+import StatusBadge from "../../components/common/StatusBadge";
 import libraryService from "../../services/libraryService";
 import { useToast } from "../../context/ToastContext";
-import { formatCurrency, formatDate, getStatusBadge } from "../../utils/formatters";
+import { formatCurrency, formatDate } from "../../utils/formatters";
 
 export default function AdminCirculationPage() {
   const { showToast } = useToast();
@@ -38,6 +39,11 @@ export default function AdminCirculationPage() {
     [data.loans]
   );
 
+  const pendingApprovals = useMemo(
+    () => activeLoans.filter((loan) => loan.status === "Return Requested"),
+    [activeLoans]
+  );
+
   const availableBooks = useMemo(
     () => data.books.filter((book) => book.copiesAvailable > 0),
     [data.books]
@@ -67,20 +73,20 @@ export default function AdminCirculationPage() {
     }
   };
 
-  const handleReturn = async (loanId) => {
+  const handleApprove = async (loanId) => {
     try {
       setBusyId(loanId);
-      const response = await libraryService.returnBook(loanId);
+      const response = await libraryService.approveReturn(loanId);
       showToast({
-        title: "Return processed",
+        title: "Return approved",
         message: response.message,
         variant: "success",
       });
       await loadCirculation();
     } catch (requestError) {
       showToast({
-        title: "Return failed",
-        message: requestError.response?.data?.message || "Unable to return the book.",
+        title: "Approval failed",
+        message: requestError.response?.data?.message || "Unable to approve the return.",
         variant: "danger",
       });
     } finally {
@@ -114,9 +120,7 @@ export default function AdminCirculationPage() {
     {
       key: "status",
       label: "Status",
-      render: (row) => (
-        <span className={`badge text-bg-${getStatusBadge(row.status)}`}>{row.status}</span>
-      ),
+      render: (row) => <StatusBadge status={row.status} />,
     },
     {
       key: "fineAmount",
@@ -126,16 +130,19 @@ export default function AdminCirculationPage() {
     {
       key: "actions",
       label: "Action",
-      render: (row) => (
-        <button
-          type="button"
-          className="btn btn-sm btn-primary"
-          disabled={busyId === row.id}
-          onClick={() => handleReturn(row.id)}
-        >
-          {busyId === row.id ? "Returning..." : "Return"}
-        </button>
-      ),
+      render: (row) =>
+        row.status === "Return Requested" ? (
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            disabled={busyId === row.id}
+            onClick={() => handleApprove(row.id)}
+          >
+            {busyId === row.id ? "Approving..." : "Approve Return"}
+          </button>
+        ) : (
+          <span className="text-body-secondary small">Waiting for student request</span>
+        ),
     },
   ];
 
@@ -144,14 +151,14 @@ export default function AdminCirculationPage() {
       <PageHeader
         eyebrow="Issue / Return"
         title="Manage circulation"
-        description="Issue books to students, monitor active loans, and process returns."
+        description="Students now request returns first. Admin approval turns the record into Returned."
       />
 
       {error ? <div className="alert alert-danger">{error}</div> : null}
 
       <div className="row g-4 mb-4">
         <div className="col-xl-4">
-          <div className="card border-0 shadow-sm h-100">
+          <div className="card border-0 shadow-sm glass-surface h-100">
             <div className="card-body">
               <h3 className="h5 mb-3">Issue a book</h3>
               <form className="row g-3" onSubmit={handleIssue}>
@@ -206,7 +213,7 @@ export default function AdminCirculationPage() {
         <div className="col-xl-8">
           <div className="row g-3">
             <div className="col-md-4">
-              <div className="card border-0 shadow-sm">
+              <div className="card border-0 shadow-sm glass-surface">
                 <div className="card-body">
                   <p className="text-body-secondary small mb-1">Active loans</p>
                   <h3 className="mb-0">{activeLoans.length}</h3>
@@ -214,15 +221,15 @@ export default function AdminCirculationPage() {
               </div>
             </div>
             <div className="col-md-4">
-              <div className="card border-0 shadow-sm">
+              <div className="card border-0 shadow-sm glass-surface">
                 <div className="card-body">
-                  <p className="text-body-secondary small mb-1">Students</p>
-                  <h3 className="mb-0">{data.students.length}</h3>
+                  <p className="text-body-secondary small mb-1">Return requests</p>
+                  <h3 className="mb-0">{pendingApprovals.length}</h3>
                 </div>
               </div>
             </div>
             <div className="col-md-4">
-              <div className="card border-0 shadow-sm">
+              <div className="card border-0 shadow-sm glass-surface">
                 <div className="card-body">
                   <p className="text-body-secondary small mb-1">Books available</p>
                   <h3 className="mb-0">{availableBooks.length}</h3>
@@ -233,13 +240,13 @@ export default function AdminCirculationPage() {
         </div>
       </div>
 
-      <div className="card border-0 shadow-sm">
+      <div className="card border-0 shadow-sm glass-surface">
         <div className="card-body p-0">
           <DataTable
             columns={columns}
             rows={loading ? [] : activeLoans}
             emptyTitle="No active loans"
-            emptyDescription="Issued books will appear here for return processing."
+            emptyDescription="Issued books will appear here for return approval."
           />
         </div>
       </div>

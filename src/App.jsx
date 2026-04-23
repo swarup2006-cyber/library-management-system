@@ -37,7 +37,7 @@ const studentNavItems = [
   {
     to: "/student/history",
     label: "Issued History",
-    description: "Return books and review history",
+    description: "Request returns and review history",
   },
   {
     to: "/student/notifications",
@@ -75,7 +75,7 @@ const adminNavItems = [
   {
     to: "/admin/circulation",
     label: "Issue / Return",
-    description: "Circulation desk for admin actions",
+    description: "Issue books and approve returns",
   },
   {
     to: "/admin/reports",

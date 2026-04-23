@@ -2,7 +2,7 @@ import axios from "axios";
 
 // This file acts as a mock API layer backed by localStorage so the frontend
 // can be fully interactive without requiring any backend changes.
-const STORAGE_KEY = "lms_mock_database_v3";
+const STORAGE_KEY = "lms_mock_database_v4";
 const SESSION_KEY = "lms_mock_session_v3";
 const NETWORK_DELAY = 320;
 const DAILY_FINE = 15;
@@ -315,6 +315,7 @@ const seedDatabase = () => {
       issuedBy: adminId,
       issuedAt: addDays(new Date(), -7),
       dueAt: addDays(new Date(), 7),
+      returnRequestedAt: addDays(new Date(), -1),
       returnedAt: "",
     },
     {
@@ -491,15 +492,22 @@ const setSession = (session) => {
 const getLoanMeta = (loan) => {
   const today = startOfToday();
   const dueDate = loan.dueAt ? new Date(loan.dueAt) : null;
+  const returnRequestedDate = loan.returnRequestedAt
+    ? new Date(loan.returnRequestedAt)
+    : null;
   const returnedDate = loan.returnedAt ? new Date(loan.returnedAt) : null;
-  const compareDate = returnedDate || today;
+  const compareDate = returnRequestedDate || returnedDate || today;
   const overdueDays = dueDate ? Math.max(0, daysBetween(dueDate, compareDate)) : 0;
   const fineAmount = overdueDays * DAILY_FINE;
   const daysRemaining = dueDate ? daysBetween(today, dueDate) : 0;
 
   let status = "Returned";
 
-  if (!returnedDate) {
+  if (returnedDate) {
+    status = "Returned";
+  } else if (returnRequestedDate) {
+    status = "Return Requested";
+  } else {
     status = overdueDays > 0 ? "Overdue" : "Issued";
   }
 
@@ -591,6 +599,12 @@ const pushNotification = (db, notification) => {
   });
 };
 
+const pushNotificationsToAdmins = (db, notification) => {
+  db.users
+    .filter((user) => user.role === "admin")
+    .forEach((admin) => pushNotification(db, { userId: admin.id, ...notification }));
+};
+
 const activeLoanForBookAndStudent = (db, studentId, bookId) =>
   db.loans.find(
     (loan) => loan.studentId === studentId && loan.bookId === bookId && !loan.returnedAt
@@ -620,7 +634,9 @@ const buildStudentDashboard = (db, studentId) => {
   return {
     user: sanitizeUser(student, db),
     summary: {
+      totalBooks: db.books.length,
       booksIssued: activeLoans.length,
+      returnedBooks: loans.filter((loan) => loan.status === "Returned").length,
       dueSoon: dueSoon.length,
       overdue: overdueLoans.length,
       fineDue,
@@ -636,9 +652,10 @@ const buildStudentDashboard = (db, studentId) => {
 const buildAdminDashboard = (db) => {
   const students = db.users.filter((user) => user.role === "student");
   const loans = db.loans.map((loan) => enrichLoan(db, loan));
-  const issuedLoans = loans.filter((loan) => loan.status === "Issued");
+  const issuedLoans = loans.filter((loan) => loan.status !== "Returned");
   const overdueLoans = loans.filter((loan) => loan.status === "Overdue");
   const returnedLoans = loans.filter((loan) => loan.status === "Returned");
+  const pendingReturnLoans = loans.filter((loan) => loan.status === "Return Requested");
   const totalFine = loans.reduce((sum, loan) => sum + loan.fineAmount, 0);
 
   return {
@@ -647,6 +664,8 @@ const buildAdminDashboard = (db) => {
       totalTitles: db.books.length,
       totalStudents: students.length,
       issuedBooks: issuedLoans.length,
+      returnedBooks: returnedLoans.length,
+      pendingReturns: pendingReturnLoans.length,
       overdueBooks: overdueLoans.length,
       availableBooks: db.books.reduce((sum, book) => sum + book.copiesAvailable, 0),
       finesCollected: totalFine,
@@ -1038,6 +1057,7 @@ const libraryService = {
         issuedBy: student.id,
         issuedAt: toIso(new Date()),
         dueAt: addDays(new Date(), LOAN_WINDOW_DAYS),
+        returnRequestedAt: "",
         returnedAt: "",
       };
 
@@ -1058,22 +1078,67 @@ const libraryService = {
     });
   },
 
-  returnBook(loanId) {
+  requestReturn(loanId) {
     return request(() => {
       const db = getDatabase();
-      const user = ensureUser(db);
+      const user = ensureUser(db, "student");
       const loan = db.loans.find((item) => item.id === loanId);
 
       if (!loan) {
         apiError("Loan record not found.", 404);
       }
 
-      if (user.role === "student" && loan.studentId !== user.id) {
+      if (loan.studentId !== user.id) {
         apiError("You cannot return another student's book.", 403);
       }
 
       if (loan.returnedAt) {
         apiError("This loan has already been returned.");
+      }
+
+      if (loan.returnRequestedAt) {
+        apiError("A return request has already been sent for this book.");
+      }
+
+      loan.returnRequestedAt = toIso(new Date());
+
+      pushNotification(db, {
+        userId: loan.studentId,
+        title: "Return request sent",
+        message: "Your return request is waiting for admin approval.",
+        type: "warning",
+      });
+      pushNotificationsToAdmins(db, {
+        title: "Return approval needed",
+        message: `${user.name} requested a return for ${getBookById(db, loan.bookId)?.title || "a book"}.`,
+        type: "warning",
+      });
+
+      saveDatabase(db);
+
+      return {
+        message: "Return request sent to admin.",
+        user: sanitizeUser(user, db),
+      };
+    });
+  },
+
+  approveReturn(loanId) {
+    return request(() => {
+      const db = getDatabase();
+      const admin = ensureUser(db, "admin");
+      const loan = db.loans.find((item) => item.id === loanId);
+
+      if (!loan) {
+        apiError("Loan record not found.", 404);
+      }
+
+      if (loan.returnedAt) {
+        apiError("This loan has already been returned.");
+      }
+
+      if (!loan.returnRequestedAt) {
+        apiError("The student has not requested a return for this book yet.");
       }
 
       loan.returnedAt = toIso(new Date());
@@ -1086,10 +1151,10 @@ const libraryService = {
       const loanMeta = getLoanMeta(loan);
       pushNotification(db, {
         userId: loan.studentId,
-        title: "Book returned",
+        title: "Return approved",
         message: loanMeta.fineAmount
-          ? `Book returned. Pending fine: Rs ${loanMeta.fineAmount}.`
-          : "Book returned successfully.",
+          ? `Admin approved your return. Fine due: Rs ${loanMeta.fineAmount}.`
+          : "Admin approved your return and the book is now closed.",
         type: loanMeta.fineAmount ? "warning" : "success",
       });
 
@@ -1097,11 +1162,18 @@ const libraryService = {
 
       return {
         message: loanMeta.fineAmount
-          ? `Book returned. Fine due: Rs ${loanMeta.fineAmount}.`
-          : "Book returned successfully.",
-        user: sanitizeUser(user, db),
+          ? `Return approved. Fine due: Rs ${loanMeta.fineAmount}.`
+          : "Return approved successfully.",
+        user: sanitizeUser(admin, db),
       };
     });
+  },
+
+  returnBook(loanId) {
+    const session = getSession();
+    const db = getDatabase();
+    const user = session?.userId ? getUserById(db, session.userId) : null;
+    return user?.role === "admin" ? this.approveReturn(loanId) : this.requestReturn(loanId);
   },
 
   getStudents() {
@@ -1437,6 +1509,7 @@ const libraryService = {
         issuedBy: admin.id,
         issuedAt: toIso(new Date()),
         dueAt: addDays(new Date(), LOAN_WINDOW_DAYS),
+        returnRequestedAt: "",
         returnedAt: "",
       });
 
@@ -1460,7 +1533,7 @@ const libraryService = {
       const loans = db.loans
         .map((loan) => enrichLoan(db, loan))
         .sort((left, right) => new Date(right.issuedAt) - new Date(left.issuedAt));
-      const issuedLoans = loans.filter((loan) => loan.status === "Issued");
+      const issuedLoans = loans.filter((loan) => loan.status !== "Returned");
       const overdueLoans = loans.filter((loan) => loan.status === "Overdue");
       const returnedLoans = loans.filter((loan) => loan.status === "Returned");
 

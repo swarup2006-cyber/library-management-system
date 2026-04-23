@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Loader from "../../components/Loader";
-import PageHeader from "../../components/common/PageHeader";
+import DashboardHero from "../../components/common/DashboardHero";
 import StatCard from "../../components/common/StatCard";
+import StatusBadge from "../../components/common/StatusBadge";
 import libraryService from "../../services/libraryService";
-import { formatCurrency, formatDate, getStatusBadge } from "../../utils/formatters";
+import { formatCurrency, formatDate } from "../../utils/formatters";
 
 export default function AdminDashboardPage() {
   const [data, setData] = useState(null);
@@ -49,59 +50,90 @@ export default function AdminDashboardPage() {
 
   return (
     <>
-      <PageHeader
+      <DashboardHero
         eyebrow="Admin Dashboard"
-        title="Library management overview"
-        description="Monitor titles, students, circulation, overdue books, and fines from one workspace."
+        title="Operate BookHeaven from one premium control deck"
+        description="Monitor circulation, approve return requests, track fines, and manage the collection in a darker, quieter workspace."
         actions={
           <>
-            <Link to="/admin/books" className="btn btn-primary">
-              Manage books
+            <Link to="/admin/circulation" className="btn btn-primary hero-button">
+              Review circulation
             </Link>
-            <Link to="/admin/circulation" className="btn btn-outline-secondary">
-              Issue / return
+            <Link to="/admin/books" className="btn btn-outline-light hero-button">
+              Manage books
             </Link>
           </>
         }
+        aside={
+          <div className="glass-panel">
+            <p className="text-uppercase small fw-semibold text-info mb-2">Pending focus</p>
+            <h2 className="h4 mb-3">{data.stats.pendingReturns} returns awaiting approval</h2>
+            <div className="d-grid gap-3">
+              {data.overdueLoans.slice(0, 3).map((loan) => (
+                <div key={loan.id} className="glass-list-item">
+                  <div>
+                    <strong>{loan.student?.name}</strong>
+                    <p className="small text-body-secondary mb-0">
+                      {loan.book?.title} - due {formatDate(loan.dueAt)}
+                    </p>
+                  </div>
+                  <StatusBadge status={loan.status} />
+                </div>
+              ))}
+              {!data.overdueLoans.length ? (
+                <div className="glass-list-item">
+                  <p className="small mb-0 text-body-secondary">
+                    No overdue books right now. The floor is quiet.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        }
       />
 
-      {error ? <div className="alert alert-danger">{error}</div> : null}
+      {error ? <div className="alert alert-danger mt-4">{error}</div> : null}
 
-      <div className="row g-3 mb-4">
+      <div className="row g-3 mt-1 mb-4">
         <StatCard
-          label="Total titles"
+          label="Total Books"
           value={data.stats.totalTitles}
-          helper={`${data.stats.totalBooks} total copies in stock`}
+          helper={`${data.stats.totalBooks} copies currently in stock`}
+          accent="primary"
+          icon="books"
         />
         <StatCard
-          label="Students"
-          value={data.stats.totalStudents}
-          helper="Registered student accounts"
-          accent="success"
-        />
-        <StatCard
-          label="Issued books"
+          label="Issued Books"
           value={data.stats.issuedBooks}
-          helper="Currently active circulation"
+          helper="Loans still active on the circulation desk"
           accent="warning"
+          icon="issue"
         />
         <StatCard
-          label="Overdue + fines"
-          value={`${data.stats.overdueBooks} / ${formatCurrency(data.stats.finesCollected)}`}
-          helper="Overdue items and total fine exposure"
+          label="Returned Books"
+          value={data.stats.returnedBooks}
+          helper="Completed loans already approved by admin"
+          accent="success"
+          icon="return"
+        />
+        <StatCard
+          label="Fine Amount"
+          value={formatCurrency(data.stats.finesCollected)}
+          helper="Frozen fine exposure across all tracked records"
           accent="danger"
+          icon="fine"
         />
       </div>
 
       <div className="row g-4">
         <div className="col-xl-8">
-          <div className="card border-0 shadow-sm">
-            <div className="card-body">
+          <div className="card border-0 shadow-sm glass-surface interactive-surface">
+            <div className="card-body p-4">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <div>
                   <h3 className="h5 mb-1">Recent circulation</h3>
                   <p className="text-body-secondary small mb-0">
-                    Latest issue and return activity across the library.
+                    Loans, return requests, and approvals flowing through the desk.
                   </p>
                 </div>
                 <Link to="/admin/reports" className="btn btn-sm btn-outline-secondary">
@@ -111,22 +143,20 @@ export default function AdminDashboardPage() {
 
               <div className="d-grid gap-3">
                 {data.recentLoans.map((loan) => (
-                  <div key={loan.id} className="border rounded-3 p-3">
-                    <div className="d-flex flex-column flex-lg-row justify-content-between gap-3">
-                      <div>
-                        <h4 className="h6 mb-1">{loan.book?.title}</h4>
-                        <p className="text-body-secondary small mb-1">
-                          {loan.student?.name} • Due {formatDate(loan.dueAt)}
-                        </p>
+                  <div key={loan.id} className="glass-list-item">
+                    <div>
+                      <strong>{loan.book?.title}</strong>
+                      <p className="small text-body-secondary mb-1">
+                        {loan.student?.name} - due {formatDate(loan.dueAt)}
+                      </p>
+                      <div className="d-flex flex-wrap gap-2">
+                        <StatusBadge status={loan.status} />
+                        <span className="meta-pill">Issued {formatDate(loan.issuedAt)}</span>
                       </div>
-                      <div className="text-lg-end">
-                        <span className={`badge text-bg-${getStatusBadge(loan.status)}`}>
-                          {loan.status}
-                        </span>
-                        <p className="small text-body-secondary mt-2 mb-0">
-                          Fine {formatCurrency(loan.fineAmount)}
-                        </p>
-                      </div>
+                    </div>
+                    <div className="text-lg-end">
+                      <p className="small text-body-secondary mb-1">Fine</p>
+                      <strong>{formatCurrency(loan.fineAmount)}</strong>
                     </div>
                   </div>
                 ))}
@@ -136,34 +166,34 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="col-xl-4">
-          <div className="card border-0 shadow-sm mb-4">
-            <div className="card-body">
+          <div className="card border-0 shadow-sm glass-surface interactive-surface mb-4">
+            <div className="card-body p-4">
               <h3 className="h5 mb-3">Students added recently</h3>
               <div className="d-grid gap-3">
                 {data.recentStudents.map((student) => (
-                  <div key={student.id} className="border rounded-3 p-3">
-                    <strong>{student.name}</strong>
-                    <p className="text-body-secondary small mb-1">{student.email}</p>
-                    <p className="small mb-0">
-                      {student.department} • {student.activeLoanCount} active loans
-                    </p>
+                  <div key={student.id} className="glass-list-item">
+                    <div>
+                      <strong>{student.name}</strong>
+                      <p className="small text-body-secondary mb-0">{student.email}</p>
+                    </div>
+                    <span className="meta-pill">{student.activeLoanCount} active</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="card border-0 shadow-sm">
-            <div className="card-body">
+          <div className="card border-0 shadow-sm glass-surface interactive-surface">
+            <div className="card-body p-4">
               <h3 className="h5 mb-3">Popular titles</h3>
               <div className="d-grid gap-3">
                 {data.popularBooks.map((book) => (
-                  <div key={book.id} className="d-flex justify-content-between gap-3">
+                  <div key={book.id} className="glass-list-item">
                     <div>
                       <strong>{book.title}</strong>
-                      <p className="text-body-secondary small mb-0">{book.authorName}</p>
+                      <p className="small text-body-secondary mb-0">{book.authorName}</p>
                     </div>
-                    <span className="badge text-bg-light">{book.activeBorrowCount} loans</span>
+                    <span className="meta-pill">{book.activeBorrowCount} loans</span>
                   </div>
                 ))}
               </div>

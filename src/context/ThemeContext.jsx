@@ -4,7 +4,7 @@ const THEME_KEY = "lms_theme";
 const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "light");
+  const [theme, setTheme] = useState(() => localStorage.getItem(THEME_KEY) || "dark");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-bs-theme", theme);

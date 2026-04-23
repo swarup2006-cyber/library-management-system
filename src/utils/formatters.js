@@ -33,12 +33,20 @@ export const getStatusBadge = (status) => {
     return "danger";
   }
 
-  if (normalized === "issued" || normalized === "warning") {
+  if (
+    normalized === "return requested" ||
+    normalized === "pending_return" ||
+    normalized === "warning"
+  ) {
     return "warning";
   }
 
   if (normalized === "returned" || normalized === "success") {
     return "success";
+  }
+
+  if (normalized === "issued" || normalized === "info") {
+    return "primary";
   }
 
   return "secondary";

@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Loader from "../../components/Loader";
 import PageHeader from "../../components/common/PageHeader";
+import StatusBadge from "../../components/common/StatusBadge";
 import libraryService from "../../services/libraryService";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
-import { formatCurrency, formatDate, getStatusBadge } from "../../utils/formatters";
+import { formatCurrency, formatDate } from "../../utils/formatters";
 
 export default function BookDetailsPage() {
   const { bookId } = useParams();
@@ -136,9 +137,7 @@ export default function BookDetailsPage() {
                   <div key={loan.id} className="border rounded-3 p-3">
                     <div className="d-flex justify-content-between gap-3 mb-1">
                       <strong>{loan.student?.name || "Student"}</strong>
-                      <span className={`badge text-bg-${getStatusBadge(loan.status)}`}>
-                        {loan.status}
-                      </span>
+                      <StatusBadge status={loan.status} />
                     </div>
                     <p className="small text-body-secondary mb-1">
                       Issued {formatDate(loan.issuedAt)} • Due {formatDate(loan.dueAt)}

@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import BrandLogo from "../common/BrandLogo";
 
 export default function Sidebar({ role, navItems, open, onClose }) {
   const { user } = useAuth();
@@ -14,16 +15,10 @@ export default function Sidebar({ role, navItems, open, onClose }) {
       <aside className={`app-sidebar ${open ? "show" : ""}`}>
         <div>
           <div className="sidebar-brand mb-4">
-            <div className="brand-mark">{role === "admin" ? "A" : "S"}</div>
-            <div>
-              <h1 className="h5 mb-1">Library OS</h1>
-              <p className="text-body-secondary small mb-0">
-                {role === "admin" ? "Admin workspace" : "Student workspace"}
-              </p>
-            </div>
+            <BrandLogo inverted />
           </div>
 
-          <div className="card border-0 shadow-sm mb-4">
+          <div className="card border-0 shadow-sm glass-surface mb-4">
             <div className="card-body">
               <p className="text-uppercase small fw-semibold text-primary mb-2">
                 Signed in as
@@ -32,7 +27,7 @@ export default function Sidebar({ role, navItems, open, onClose }) {
               <p className="text-body-secondary small mb-0">
                 {role === "admin"
                   ? "Manages circulation, reports, and inventory"
-                  : `${user?.studentId || "Student account"} • ${user?.department || "Member"}`}
+                  : `${user?.studentId || "Student account"} - ${user?.department || "Member"}`}
               </p>
             </div>
           </div>
@@ -53,15 +48,15 @@ export default function Sidebar({ role, navItems, open, onClose }) {
           </nav>
         </div>
 
-        <div className="card border-0 bg-primary-subtle mt-4">
+        <div className="card border-0 glass-surface mt-4">
           <div className="card-body">
             <p className="text-uppercase small fw-semibold text-primary mb-2">
               {role === "admin" ? "Operations" : "Borrowing"}
             </p>
             <p className="small text-body-secondary mb-0">
               {role === "admin"
-                ? "Use the circulation desk to issue and return books for students."
-                : "Use the books page to issue titles and the history page to return them."}
+                ? "Approve return requests and manage circulation from one place."
+                : "Browse books, request returns, and watch notifications without leaving the workspace."}
             </p>
           </div>
         </div>

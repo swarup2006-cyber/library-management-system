@@ -5,6 +5,8 @@ const borrowSchema = new mongoose.Schema({
   book: { type: mongoose.Schema.ObjectId, ref: "Book" },
   borrowDate: Date,
   dueDate: Date,
+  // A student can only request a return. Admin approval closes the loan.
+  returnRequestedAt: Date,
   returnDate: Date,
   fineAtReturn: {
     type: Number,

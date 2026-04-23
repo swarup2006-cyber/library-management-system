@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { initials } from "../utils/formatters";
+import BrandLogo from "./common/BrandLogo";
 
 export default function Navbar({ title, subtitle, onMenuToggle }) {
   const navigate = useNavigate();
@@ -18,11 +19,14 @@ export default function Navbar({ title, subtitle, onMenuToggle }) {
       <div className="d-flex align-items-center gap-3">
         <button
           type="button"
-          className="btn btn-outline-secondary d-lg-none"
+          className="btn btn-outline-secondary d-lg-none topbar-control"
           onClick={onMenuToggle}
         >
           Menu
         </button>
+        <Link to={user?.role === "admin" ? "/admin/dashboard" : "/student/dashboard"}>
+          <BrandLogo compact />
+        </Link>
         <div>
           <p className="text-body-secondary small mb-1">{subtitle}</p>
           <h2 className="h5 mb-0">{title}</h2>
@@ -33,7 +37,7 @@ export default function Navbar({ title, subtitle, onMenuToggle }) {
         {user ? (
           <Link
             to={user.role === "admin" ? "/admin/profile" : "/student/notifications"}
-            className="btn btn-outline-secondary position-relative"
+            className="btn btn-outline-secondary position-relative topbar-control"
           >
             {user.role === "admin" ? "Profile" : "Alerts"}
             {user.unreadCount ? (
@@ -44,8 +48,12 @@ export default function Navbar({ title, subtitle, onMenuToggle }) {
           </Link>
         ) : null}
 
-        <button type="button" className="btn btn-outline-secondary" onClick={toggleTheme}>
-          {theme === "dark" ? "Light" : "Dark"}
+        <button
+          type="button"
+          className="btn btn-outline-secondary topbar-control"
+          onClick={toggleTheme}
+        >
+          {theme === "dark" ? "Light mode" : "Dark mode"}
         </button>
 
         {user ? (
@@ -53,7 +61,7 @@ export default function Navbar({ title, subtitle, onMenuToggle }) {
             <div className="avatar-pill">
               <span>{initials(user.name)}</span>
             </div>
-            <button type="button" className="btn btn-primary" onClick={handleLogout}>
+            <button type="button" className="btn btn-primary topbar-control" onClick={handleLogout}>
               Logout
             </button>
           </>

@@ -3,10 +3,11 @@ import Loader from "../../components/Loader";
 import PageHeader from "../../components/common/PageHeader";
 import StatCard from "../../components/common/StatCard";
 import DataTable from "../../components/tables/DataTable";
+import StatusBadge from "../../components/common/StatusBadge";
 import libraryService from "../../services/libraryService";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
-import { formatCurrency, formatDate, getStatusBadge } from "../../utils/formatters";
+import { formatCurrency, formatDate } from "../../utils/formatters";
 
 export default function StudentHistoryPage() {
   const { refreshUser } = useAuth();
@@ -34,29 +35,29 @@ export default function StudentHistoryPage() {
 
   const summary = useMemo(
     () => ({
-      active: loans.filter((loan) => loan.status !== "Returned").length,
-      overdue: loans.filter((loan) => loan.status === "Overdue").length,
+      active: loans.filter((loan) => loan.status === "Issued" || loan.status === "Overdue").length,
+      requested: loans.filter((loan) => loan.status === "Return Requested").length,
       returned: loans.filter((loan) => loan.status === "Returned").length,
       fines: loans.reduce((sum, loan) => sum + loan.fineAmount, 0),
     }),
     [loans]
   );
 
-  const handleReturn = async (loanId) => {
+  const handleRequestReturn = async (loanId) => {
     try {
       setBusyId(loanId);
-      const response = await libraryService.returnBook(loanId);
+      const response = await libraryService.requestReturn(loanId);
       await loadHistory();
       await refreshUser();
       showToast({
-        title: "Return complete",
+        title: "Return requested",
         message: response.message,
         variant: "success",
       });
     } catch (requestError) {
       showToast({
-        title: "Return failed",
-        message: requestError.response?.data?.message || "Unable to return the book.",
+        title: "Request failed",
+        message: requestError.response?.data?.message || "Unable to request the return.",
         variant: "danger",
       });
     } finally {
@@ -92,9 +93,7 @@ export default function StudentHistoryPage() {
     {
       key: "status",
       label: "Status",
-      render: (row) => (
-        <span className={`badge text-bg-${getStatusBadge(row.status)}`}>{row.status}</span>
-      ),
+      render: (row) => <StatusBadge status={row.status} />,
     },
     {
       key: "fineAmount",
@@ -104,55 +103,65 @@ export default function StudentHistoryPage() {
     {
       key: "actions",
       label: "Action",
-      render: (row) =>
-        row.status === "Returned" ? (
-          <span className="text-body-secondary small">Completed</span>
-        ) : (
+      render: (row) => {
+        if (row.status === "Returned") {
+          return <StatusBadge status="Returned" />;
+        }
+
+        if (row.status === "Return Requested") {
+          return <span className="text-body-secondary small">Waiting for admin approval</span>;
+        }
+
+        return (
           <button
             type="button"
             className="btn btn-sm btn-primary"
             disabled={busyId === row.id}
-            onClick={() => handleReturn(row.id)}
+            onClick={() => handleRequestReturn(row.id)}
           >
-            {busyId === row.id ? "Returning..." : "Return"}
+            {busyId === row.id ? "Sending..." : "Request Return"}
           </button>
-        ),
+        );
+      },
     },
   ];
 
   return (
     <>
       <PageHeader
-        eyebrow="Issued History"
+        eyebrow="Issue History"
         title="Issued and returned books"
-        description="Review all issued books, due dates, return status, and fines."
+        description="Students now send a return request first. Admin approval closes the loan."
       />
 
       {error ? <div className="alert alert-danger">{error}</div> : null}
 
       <div className="row g-3 mb-4">
-        <StatCard label="Active" value={summary.active} helper="Currently issued books" />
+        <StatCard label="Issued" value={summary.active} helper="Books still in progress" accent="primary" icon="issue" />
         <StatCard
-          label="Overdue"
-          value={summary.overdue}
-          helper="Books that need to be returned soon"
-          accent="danger"
+          label="Return Requested"
+          value={summary.requested}
+          helper="Awaiting admin approval"
+          accent="warning"
+          icon="return"
         />
         <StatCard
           label="Returned"
           value={summary.returned}
-          helper="Books already checked back in"
+          helper="Loans already approved and completed"
           accent="success"
+          icon="return"
         />
         <StatCard
-          label="Fine total"
+          label="Fine Amount"
           value={formatCurrency(summary.fines)}
-          helper="Estimated fines across the full history"
-          accent="warning"
+          helper="Frozen at request time when applicable"
+          accent="danger"
+          icon="fine"
         />
       </div>
 
-      <div className="card border-0 shadow-sm">
+      <div className="card border-0 shadow-sm glass-surface">
         <div className="card-body p-0">
           <DataTable
             columns={columns}

@@ -2,6 +2,26 @@ const Borrow = require("../models/borrowModel");
 const Book = require("../models/bookModel");
 const { BORROW_WINDOW_DAYS, serializeBorrowRecord } = require("../utils/borrowMetrics");
 
+const restoreBookStock = async (bookId) => {
+  const book = await Book.findById(bookId);
+
+  if (!book) {
+    return;
+  }
+
+  const totalStock = book.totalStock || 1;
+  const currentStock =
+    typeof book.availableStock === "number"
+      ? book.availableStock
+      : book.available
+        ? totalStock
+        : 0;
+
+  book.availableStock = Math.min(currentStock + 1, totalStock);
+  book.available = book.availableStock > 0;
+  await book.save();
+};
+
 // Borrow book
 exports.borrowBook = async (req, res) => {
   const { bookId } = req.body;
@@ -55,8 +75,48 @@ exports.getBorrowedBooks = async (req, res) => {
   res.json(records.map((record) => serializeBorrowRecord(record)));
 };
 
-// Return book
-exports.returnBook = async (req, res) => {
+const requestReturnInternal = async (record) => {
+  if (record.returnDate) {
+    return { status: 400, message: "This book has already been returned." };
+  }
+
+  if (record.returnRequestedAt) {
+    return { status: 400, message: "A return request is already pending for this book." };
+  }
+
+  record.returnRequestedAt = Date.now();
+  await record.save();
+
+  return {
+    status: 200,
+    message: "Return request sent to admin for approval.",
+  };
+};
+
+const approveReturnInternal = async (record) => {
+  if (record.returnDate) {
+    return { status: 400, message: "This book has already been returned." };
+  }
+
+  if (!record.returnRequestedAt) {
+    return { status: 400, message: "The student has not requested a return yet." };
+  }
+
+  record.returnDate = Date.now();
+  const serializedRecord = serializeBorrowRecord(record);
+  record.fineAtReturn = serializedRecord.fineAmount;
+  await record.save();
+  await restoreBookStock(record.book);
+
+  return {
+    status: 200,
+    message: serializedRecord.fineAmount
+      ? `Return approved. Fine due: ${serializedRecord.fineAmount}.`
+      : "Return approved successfully.",
+  };
+};
+
+exports.requestReturn = async (req, res) => {
   const record = await Borrow.findOne({
     _id: req.params.id,
     user: req.user._id,
@@ -66,35 +126,26 @@ exports.returnBook = async (req, res) => {
     return res.status(404).json({ message: "Borrow record not found." });
   }
 
-  if (record.returnDate) {
-    return res.status(400).json({ message: "This book has already been returned." });
+  const result = await requestReturnInternal(record);
+  return res.status(result.status).json({ success: result.status < 400, message: result.message });
+};
+
+exports.approveReturn = async (req, res) => {
+  const record = await Borrow.findById(req.params.id);
+
+  if (!record) {
+    return res.status(404).json({ message: "Borrow record not found." });
   }
 
-  record.returnDate = Date.now();
-  const serializedRecord = serializeBorrowRecord(record);
-  record.fineAtReturn = serializedRecord.fineAmount;
-  await record.save();
+  const result = await approveReturnInternal(record);
+  return res.status(result.status).json({ success: result.status < 400, message: result.message });
+};
 
-  const book = await Book.findById(record.book);
-
-  if (book) {
-    const totalStock = book.totalStock || 1;
-    const currentStock =
-      typeof book.availableStock === "number"
-        ? book.availableStock
-        : book.available
-          ? totalStock
-          : 0;
-
-    book.availableStock = Math.min(currentStock + 1, totalStock);
-    book.available = book.availableStock > 0;
-    await book.save();
+// Compatibility endpoint: students request return, admins approve return.
+exports.returnBook = async (req, res) => {
+  if (req.user.role === "admin") {
+    return exports.approveReturn(req, res);
   }
 
-  res.json({
-    success: true,
-    message: serializedRecord.fineAmount
-      ? `Book returned. Fine due: ${serializedRecord.fineAmount}.`
-      : "Book returned",
-  });
+  return exports.requestReturn(req, res);
 };
