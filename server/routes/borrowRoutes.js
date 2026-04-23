@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   borrowBook,
   getBorrowedBooks,
+  getStudentIssues,
   requestReturn,
   approveReturn,
   returnBook,
@@ -11,6 +12,12 @@ const {
 
 const { authorizeRoles, isAuthenticated } = require("../middlewares/authMiddleware");
 
+router.get(
+  "/issues/student/:studentId",
+  isAuthenticated,
+  authorizeRoles("admin"),
+  getStudentIssues
+);
 router.get("/borrowed", isAuthenticated, getBorrowedBooks);
 router.post("/borrow", isAuthenticated, borrowBook);
 router.put("/borrow/:id/request-return", isAuthenticated, requestReturn);

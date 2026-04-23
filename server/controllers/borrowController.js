@@ -67,6 +67,19 @@ exports.borrowBook = async (req, res) => {
   });
 };
 
+exports.getStudentIssues = async (req, res) => {
+  // Admins use this to load the full issue context as soon as a student is selected.
+  const records = await Borrow.find({ user: req.params.studentId })
+    .populate("book")
+    .populate("user", "name email role")
+    .sort({ borrowDate: -1 });
+
+  res.json({
+    success: true,
+    issues: records.map((record) => serializeBorrowRecord(record)),
+  });
+};
+
 exports.getBorrowedBooks = async (req, res) => {
   const records = await Borrow.find({ user: req.user._id })
     .populate("book")
@@ -93,12 +106,19 @@ const requestReturnInternal = async (record) => {
   };
 };
 
-const approveReturnInternal = async (record) => {
+const finalizeReturnInternal = async (
+  record,
+  {
+    requireReturnRequest = false,
+    successMessage = "Book returned successfully.",
+    successMessageWithFine,
+  } = {}
+) => {
   if (record.returnDate) {
     return { status: 400, message: "This book has already been returned." };
   }
 
-  if (!record.returnRequestedAt) {
+  if (requireReturnRequest && !record.returnRequestedAt) {
     return { status: 400, message: "The student has not requested a return yet." };
   }
 
@@ -106,15 +126,23 @@ const approveReturnInternal = async (record) => {
   const serializedRecord = serializeBorrowRecord(record);
   record.fineAtReturn = serializedRecord.fineAmount;
   await record.save();
-  await restoreBookStock(record.book);
+  await restoreBookStock(record.book?._id || record.book);
 
   return {
     status: 200,
     message: serializedRecord.fineAmount
-      ? `Return approved. Fine due: ${serializedRecord.fineAmount}.`
-      : "Return approved successfully.",
+      ? successMessageWithFine?.(serializedRecord.fineAmount) ||
+        `${successMessage} Fine due: ${serializedRecord.fineAmount}.`
+      : successMessage,
   };
 };
+
+const approveReturnInternal = async (record) =>
+  finalizeReturnInternal(record, {
+    requireReturnRequest: true,
+    successMessage: "Return approved successfully.",
+    successMessageWithFine: (fineAmount) => `Return approved. Fine due: ${fineAmount}.`,
+  });
 
 exports.requestReturn = async (req, res) => {
   const record = await Borrow.findOne({
@@ -144,7 +172,18 @@ exports.approveReturn = async (req, res) => {
 // Compatibility endpoint: students request return, admins approve return.
 exports.returnBook = async (req, res) => {
   if (req.user.role === "admin") {
-    return exports.approveReturn(req, res);
+    const record = await Borrow.findById(req.params.id);
+
+    if (!record) {
+      return res.status(404).json({ message: "Borrow record not found." });
+    }
+
+    const result = await finalizeReturnInternal(record, {
+      successMessage: "Book returned successfully.",
+      successMessageWithFine: (fineAmount) => `Book returned. Fine due: ${fineAmount}.`,
+    });
+
+    return res.status(result.status).json({ success: result.status < 400, message: result.message });
   }
 
   return exports.requestReturn(req, res);

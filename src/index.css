@@ -530,10 +530,16 @@ body,
   color: #93c5fd;
 }
 
-.status-warning {
-  background: rgba(245, 158, 11, 0.18);
-  border-color: rgba(251, 191, 36, 0.28);
+.status-issued {
+  background: rgba(250, 204, 21, 0.18);
+  border-color: rgba(234, 179, 8, 0.3);
   color: #fde68a;
+}
+
+.status-warning {
+  background: rgba(249, 115, 22, 0.18);
+  border-color: rgba(251, 146, 60, 0.3);
+  color: #fdba74;
 }
 
 .status-success {
@@ -558,8 +564,12 @@ body,
   color: #1d4ed8;
 }
 
+[data-theme="light"] .status-issued {
+  color: #a16207;
+}
+
 [data-theme="light"] .status-warning {
-  color: #b45309;
+  color: #c2410c;
 }
 
 [data-theme="light"] .status-success {

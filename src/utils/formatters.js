@@ -33,6 +33,10 @@ export const getStatusBadge = (status) => {
     return "danger";
   }
 
+  if (normalized === "issued" || normalized === "borrowed") {
+    return "issued";
+  }
+
   if (
     normalized === "return requested" ||
     normalized === "pending_return" ||
@@ -45,7 +49,7 @@ export const getStatusBadge = (status) => {
     return "success";
   }
 
-  if (normalized === "issued" || normalized === "info") {
+  if (normalized === "info") {
     return "primary";
   }
 

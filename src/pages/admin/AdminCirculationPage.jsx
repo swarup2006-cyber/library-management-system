@@ -1,24 +1,29 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Loader from "../../components/Loader";
+import StudentIssuesPanel from "../../components/admin/StudentIssuesPanel";
 import PageHeader from "../../components/common/PageHeader";
-import DataTable from "../../components/tables/DataTable";
-import StatusBadge from "../../components/common/StatusBadge";
 import libraryService from "../../services/libraryService";
 import { useToast } from "../../context/ToastContext";
-import { formatCurrency, formatDate } from "../../utils/formatters";
+import { formatCurrency } from "../../utils/formatters";
 
 export default function AdminCirculationPage() {
   const { showToast } = useToast();
   const [data, setData] = useState({ students: [], books: [], loans: [] });
   const [loading, setLoading] = useState(true);
-  const [issueForm, setIssueForm] = useState({
-    studentId: "",
-    bookId: "",
-  });
+  const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [studentIssues, setStudentIssues] = useState([]);
+  const [studentIssuesLoading, setStudentIssuesLoading] = useState(false);
+  const [studentIssuesError, setStudentIssuesError] = useState("");
+  const [issueForm, setIssueForm] = useState({ bookId: "" });
   const [busyId, setBusyId] = useState("");
   const [issuing, setIssuing] = useState(false);
   const [error, setError] = useState("");
 
-  const loadCirculation = async () => {
+  const loadCirculation = useCallback(async ({ showLoader = false } = {}) => {
+    if (showLoader) {
+      setLoading(true);
+    }
+
     try {
       setError("");
       const response = await libraryService.getCirculationData();
@@ -26,13 +31,62 @@ export default function AdminCirculationPage() {
     } catch (requestError) {
       setError(requestError.response?.data?.message || "Unable to load circulation data.");
     } finally {
-      setLoading(false);
+      if (showLoader) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
+
+  const loadStudentIssues = useCallback(async (studentId) => {
+    if (!studentId) {
+      setStudentIssues([]);
+      setStudentIssuesError("");
+      setStudentIssuesLoading(false);
+      return;
+    }
+
+    try {
+      setStudentIssuesLoading(true);
+      setStudentIssuesError("");
+      const response = await libraryService.getStudentIssues(studentId);
+      setStudentIssues(response.issues);
+    } catch (requestError) {
+      setStudentIssues([]);
+      setStudentIssuesError(
+        requestError.response?.data?.message || "Unable to load issued books for this student."
+      );
+    } finally {
+      setStudentIssuesLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    loadCirculation();
-  }, []);
+    loadCirculation({ showLoader: true });
+  }, [loadCirculation]);
+
+  useEffect(() => {
+    // Student selection is the trigger for loading the full issue context below.
+    loadStudentIssues(selectedStudentId);
+  }, [loadStudentIssues, selectedStudentId]);
+
+  useEffect(() => {
+    if (!selectedStudentId) {
+      return;
+    }
+
+    const studentStillExists = data.students.some((student) => student.id === selectedStudentId);
+
+    if (!studentStillExists) {
+      setSelectedStudentId("");
+      setIssueForm({ bookId: "" });
+      setStudentIssues([]);
+    }
+  }, [data.students, selectedStudentId]);
+
+  const selectedStudent = useMemo(
+    () => data.students.find((student) => student.id === selectedStudentId) || null,
+    [data.students, selectedStudentId]
+  );
 
   const activeLoans = useMemo(
     () => data.loans.filter((loan) => loan.status !== "Returned"),
@@ -44,24 +98,59 @@ export default function AdminCirculationPage() {
     [activeLoans]
   );
 
-  const availableBooks = useMemo(
-    () => data.books.filter((book) => book.copiesAvailable > 0),
-    [data.books]
+  const selectedActiveBookIds = useMemo(
+    () =>
+      new Set(
+        studentIssues
+          .filter((loan) => loan.status !== "Returned")
+          .map((loan) => loan.bookId || loan.book?.id || loan.book?._id)
+      ),
+    [studentIssues]
   );
+
+  const availableBooks = useMemo(
+    () =>
+      data.books.filter(
+        (book) => book.copiesAvailable > 0 && !selectedActiveBookIds.has(book.id)
+      ),
+    [data.books, selectedActiveBookIds]
+  );
+
+  const refreshAdminContext = useCallback(
+    async (studentId = selectedStudentId) => {
+      // Keep counts, book availability, and the selected student's issue list in sync.
+      await loadCirculation();
+      await loadStudentIssues(studentId);
+    },
+    [loadCirculation, loadStudentIssues, selectedStudentId]
+  );
+
+  const handleStudentChange = (event) => {
+    const nextStudentId = event.target.value;
+    setSelectedStudentId(nextStudentId);
+    setIssueForm({ bookId: "" });
+  };
 
   const handleIssue = async (event) => {
     event.preventDefault();
 
+    if (!selectedStudentId) {
+      return;
+    }
+
     try {
       setIssuing(true);
-      await libraryService.issueBookAsAdmin(issueForm);
+      await libraryService.issueBookAsAdmin({
+        studentId: selectedStudentId,
+        bookId: issueForm.bookId,
+      });
       showToast({
         title: "Book issued",
         message: "Book issued to the selected student.",
         variant: "success",
       });
-      setIssueForm({ studentId: "", bookId: "" });
-      await loadCirculation();
+      setIssueForm({ bookId: "" });
+      await refreshAdminContext(selectedStudentId);
     } catch (requestError) {
       showToast({
         title: "Issue failed",
@@ -73,16 +162,37 @@ export default function AdminCirculationPage() {
     }
   };
 
-  const handleApprove = async (loanId) => {
+  const handleReturn = async (loan) => {
     try {
-      setBusyId(loanId);
-      const response = await libraryService.approveReturn(loanId);
+      setBusyId(loan.id);
+      const response = await libraryService.returnBook(loan.id);
+      showToast({
+        title: "Book returned",
+        message: response.message,
+        variant: "success",
+      });
+      await refreshAdminContext(selectedStudentId);
+    } catch (requestError) {
+      showToast({
+        title: "Return failed",
+        message: requestError.response?.data?.message || "Unable to return the book.",
+        variant: "danger",
+      });
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const handleApprove = async (loan) => {
+    try {
+      setBusyId(loan.id);
+      const response = await libraryService.approveReturn(loan.id);
       showToast({
         title: "Return approved",
         message: response.message,
         variant: "success",
       });
-      await loadCirculation();
+      await refreshAdminContext(selectedStudentId);
     } catch (requestError) {
       showToast({
         title: "Approval failed",
@@ -94,101 +204,88 @@ export default function AdminCirculationPage() {
     }
   };
 
-  const columns = [
-    {
-      key: "student",
-      label: "Student",
-      render: (row) => (
-        <div>
-          <strong>{row.student?.name}</strong>
-          <div className="small text-body-secondary">{row.student?.studentId}</div>
-        </div>
-      ),
-    },
-    {
-      key: "book",
-      label: "Book",
-      render: (row) => (
-        <div>
-          <strong>{row.book?.title}</strong>
-          <div className="small text-body-secondary">{row.book?.authorName}</div>
-        </div>
-      ),
-    },
-    { key: "issuedAt", label: "Issued", render: (row) => formatDate(row.issuedAt) },
-    { key: "dueAt", label: "Due", render: (row) => formatDate(row.dueAt) },
-    {
-      key: "status",
-      label: "Status",
-      render: (row) => <StatusBadge status={row.status} />,
-    },
-    {
-      key: "fineAmount",
-      label: "Fine",
-      render: (row) => formatCurrency(row.fineAmount),
-    },
-    {
-      key: "actions",
-      label: "Action",
-      render: (row) =>
-        row.status === "Return Requested" ? (
-          <button
-            type="button"
-            className="btn btn-sm btn-primary"
-            disabled={busyId === row.id}
-            onClick={() => handleApprove(row.id)}
-          >
-            {busyId === row.id ? "Approving..." : "Approve Return"}
-          </button>
-        ) : (
-          <span className="text-body-secondary small">Waiting for student request</span>
-        ),
-    },
-  ];
+  if (loading) {
+    return <Loader label="Loading circulation data..." />;
+  }
 
   return (
     <>
       <PageHeader
         eyebrow="Issue / Return"
         title="Manage circulation"
-        description="Students now request returns first. Admin approval turns the record into Returned."
+        description="Selecting a student now reveals the full issue context instantly, so returns and approvals happen from one view."
       />
 
       {error ? <div className="alert alert-danger">{error}</div> : null}
 
-      <div className="row g-4 mb-4">
+      <section className="card border-0 shadow-sm glass-surface">
+        <div className="card-body">
+          <div className="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+            <div>
+              <h3 className="h5 mb-1">Select student</h3>
+              <p className="text-body-secondary mb-0">
+                Choosing a student loads every issued book for that student automatically.
+              </p>
+            </div>
+            {selectedStudent ? (
+              <div className="d-flex flex-wrap gap-2">
+                <span className="meta-pill">{selectedStudent.name}</span>
+                <span className="meta-pill">{selectedStudent.studentId || "Student record"}</span>
+                <span className="meta-pill">{selectedStudent.activeLoanCount} active loans</span>
+                <span className="meta-pill">{formatCurrency(selectedStudent.fineDue)} fine due</span>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="form-grid">
+            <div className="form-field full-width">
+              <label className="form-label">Student</label>
+              <select
+                className="form-select"
+                value={selectedStudentId}
+                onChange={handleStudentChange}
+              >
+                <option value="">Select student</option>
+                {data.students.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.name} ({student.studentId})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="row g-4">
         <div className="col-xl-4">
           <div className="card border-0 shadow-sm glass-surface h-100">
             <div className="card-body">
-              <h3 className="h5 mb-3">Issue a book</h3>
+              <h3 className="h5 mb-3">Issue new book</h3>
               <form className="form-grid" onSubmit={handleIssue}>
                 <div className="form-field full-width">
                   <label className="form-label">Student</label>
-                  <select
-                    className="form-select"
-                    value={issueForm.studentId}
-                    onChange={(event) =>
-                      setIssueForm((current) => ({ ...current, studentId: event.target.value }))
+                  <input
+                    className="form-control"
+                    value={
+                      selectedStudent
+                        ? `${selectedStudent.name} (${selectedStudent.studentId || "Student"})`
+                        : "Select a student above"
                     }
-                  >
-                    <option value="">Select student</option>
-                    {data.students.map((student) => (
-                      <option key={student.id} value={student.id}>
-                        {student.name} ({student.studentId})
-                      </option>
-                    ))}
-                  </select>
+                    readOnly
+                  />
                 </div>
                 <div className="form-field full-width">
                   <label className="form-label">Book</label>
                   <select
                     className="form-select"
                     value={issueForm.bookId}
-                    onChange={(event) =>
-                      setIssueForm((current) => ({ ...current, bookId: event.target.value }))
-                    }
+                    disabled={!selectedStudentId || issuing}
+                    onChange={(event) => setIssueForm({ bookId: event.target.value })}
                   >
-                    <option value="">Select book</option>
+                    <option value="">
+                      {selectedStudentId ? "Select available book" : "Select a student first"}
+                    </option>
                     {availableBooks.map((book) => (
                       <option key={book.id} value={book.id}>
                         {book.title} ({book.copiesAvailable} available)
@@ -200,7 +297,7 @@ export default function AdminCirculationPage() {
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    disabled={!issueForm.studentId || !issueForm.bookId || issuing}
+                    disabled={!selectedStudentId || !issueForm.bookId || issuing}
                   >
                     {issuing ? "Issuing..." : "Issue book"}
                   </button>
@@ -232,7 +329,9 @@ export default function AdminCirculationPage() {
               <div className="card border-0 shadow-sm glass-surface">
                 <div className="card-body">
                   <p className="text-body-secondary small mb-1">Books available</p>
-                  <h3 className="mb-0">{availableBooks.length}</h3>
+                  <h3 className="mb-0">
+                    {data.books.reduce((sum, book) => sum + book.copiesAvailable, 0)}
+                  </h3>
                 </div>
               </div>
             </div>
@@ -240,16 +339,15 @@ export default function AdminCirculationPage() {
         </div>
       </div>
 
-      <div className="card border-0 shadow-sm glass-surface">
-        <div className="card-body p-0">
-          <DataTable
-            columns={columns}
-            rows={loading ? [] : activeLoans}
-            emptyTitle="No active loans"
-            emptyDescription="Issued books will appear here for return approval."
-          />
-        </div>
-      </div>
+      <StudentIssuesPanel
+        student={selectedStudent}
+        issues={studentIssues}
+        loading={studentIssuesLoading}
+        error={studentIssuesError}
+        busyId={busyId}
+        onReturn={handleReturn}
+        onApprove={handleApprove}
+      />
     </>
   );
 }

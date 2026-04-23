@@ -14,6 +14,9 @@ exports.serializeBorrowRecord = (record) => {
   const comparisonDate = returnRequestedAt || returnDate || now;
   const overdueDays = dueDate ? getWholeDayDiff(dueDate, comparisonDate) : 0;
   const fineAmount = overdueDays * DAILY_FINE;
+  const baseRecord = record.toObject();
+  const bookId = baseRecord.book?._id || baseRecord.book || null;
+  const studentId = baseRecord.user?._id || baseRecord.user || null;
 
   let status = "Returned";
 
@@ -22,11 +25,17 @@ exports.serializeBorrowRecord = (record) => {
   } else if (returnRequestedAt) {
     status = "Return Requested";
   } else {
-    status = overdueDays > 0 ? "Overdue" : "Borrowed";
+    status = overdueDays > 0 ? "Overdue" : "Issued";
   }
 
   return {
-    ...record.toObject(),
+    ...baseRecord,
+    student: baseRecord.user || null,
+    studentId,
+    bookId,
+    issueDate: baseRecord.borrowDate || null,
+    issuedAt: baseRecord.borrowDate || null,
+    fine: fineAmount,
     status,
     overdueDays,
     fineAmount,

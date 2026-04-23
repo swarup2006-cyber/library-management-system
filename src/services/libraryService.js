@@ -525,9 +525,13 @@ const getUserById = (db, id) => db.users.find((user) => user.id === id);
 const enrichLoan = (db, loan) => {
   const book = getBookById(db, loan.bookId);
   const student = getUserById(db, loan.studentId);
+  const meta = getLoanMeta(loan);
+
   return {
     ...clone(loan),
-    ...getLoanMeta(loan),
+    ...meta,
+    issueDate: loan.issuedAt,
+    fine: meta.fineAmount,
     book: book ? clone(book) : null,
     student: student ? sanitizeUser(student, db) : null,
   };
@@ -609,6 +613,45 @@ const activeLoanForBookAndStudent = (db, studentId, bookId) =>
   db.loans.find(
     (loan) => loan.studentId === studentId && loan.bookId === bookId && !loan.returnedAt
   );
+
+// Shared admin-side return logic so direct returns and approvals stay in sync.
+const finalizeAdminReturn = (
+  db,
+  loan,
+  { requireReturnRequest = false, successTitle, successMessageWithFine, successMessage } = {}
+) => {
+  if (!loan) {
+    apiError("Loan record not found.", 404);
+  }
+
+  if (loan.returnedAt) {
+    apiError("This loan has already been returned.");
+  }
+
+  if (requireReturnRequest && !loan.returnRequestedAt) {
+    apiError("The student has not requested a return for this book yet.");
+  }
+
+  loan.returnedAt = toIso(new Date());
+  const book = getBookById(db, loan.bookId);
+
+  if (book) {
+    book.copiesAvailable = Math.min(book.copiesAvailable + 1, book.copiesTotal);
+  }
+
+  const loanMeta = getLoanMeta(loan);
+  pushNotification(db, {
+    userId: loan.studentId,
+    title: successTitle || "Book returned",
+    message: loanMeta.fineAmount
+      ? successMessageWithFine?.(loanMeta.fineAmount) ||
+        `Book returned. Fine due: Rs ${loanMeta.fineAmount}.`
+      : successMessage || "The return has been completed successfully.",
+    type: loanMeta.fineAmount ? "warning" : "success",
+  });
+
+  return loanMeta;
+};
 
 const buildStudentDashboard = (db, studentId) => {
   const student = getUserById(db, studentId);
@@ -1128,34 +1171,12 @@ const libraryService = {
       const db = getDatabase();
       const admin = ensureUser(db, "admin");
       const loan = db.loans.find((item) => item.id === loanId);
-
-      if (!loan) {
-        apiError("Loan record not found.", 404);
-      }
-
-      if (loan.returnedAt) {
-        apiError("This loan has already been returned.");
-      }
-
-      if (!loan.returnRequestedAt) {
-        apiError("The student has not requested a return for this book yet.");
-      }
-
-      loan.returnedAt = toIso(new Date());
-      const book = getBookById(db, loan.bookId);
-
-      if (book) {
-        book.copiesAvailable = Math.min(book.copiesAvailable + 1, book.copiesTotal);
-      }
-
-      const loanMeta = getLoanMeta(loan);
-      pushNotification(db, {
-        userId: loan.studentId,
-        title: "Return approved",
-        message: loanMeta.fineAmount
-          ? `Admin approved your return. Fine due: Rs ${loanMeta.fineAmount}.`
-          : "Admin approved your return and the book is now closed.",
-        type: loanMeta.fineAmount ? "warning" : "success",
+      const loanMeta = finalizeAdminReturn(db, loan, {
+        requireReturnRequest: true,
+        successTitle: "Return approved",
+        successMessageWithFine: (fineAmount) =>
+          `Admin approved your return. Fine due: Rs ${fineAmount}.`,
+        successMessage: "Admin approved your return and the book is now closed.",
       });
 
       saveDatabase(db);
@@ -1173,7 +1194,49 @@ const libraryService = {
     const session = getSession();
     const db = getDatabase();
     const user = session?.userId ? getUserById(db, session.userId) : null;
-    return user?.role === "admin" ? this.approveReturn(loanId) : this.requestReturn(loanId);
+    if (user?.role === "admin") {
+      return request(() => {
+        const nextDb = getDatabase();
+        const admin = ensureUser(nextDb, "admin");
+        const loan = nextDb.loans.find((item) => item.id === loanId);
+        const loanMeta = finalizeAdminReturn(nextDb, loan, {
+          successTitle: "Book returned",
+          successMessageWithFine: (fineAmount) => `Book returned. Fine due: Rs ${fineAmount}.`,
+          successMessage: "Book returned successfully.",
+        });
+
+        saveDatabase(nextDb);
+
+        return {
+          message: loanMeta.fineAmount
+            ? `Book returned. Fine due: Rs ${loanMeta.fineAmount}.`
+            : "Book returned successfully.",
+          user: sanitizeUser(admin, nextDb),
+        };
+      });
+    }
+
+    return this.requestReturn(loanId);
+  },
+
+  getStudentIssues(studentId) {
+    return request(() => {
+      const db = getDatabase();
+      ensureUser(db, "admin");
+      const student = getUserById(db, studentId);
+
+      if (!student || student.role !== "student") {
+        apiError("Student not found.", 404);
+      }
+
+      return {
+        student: sanitizeUser(student, db),
+        issues: db.loans
+          .filter((loan) => loan.studentId === studentId)
+          .map((loan) => enrichLoan(db, loan))
+          .sort((left, right) => new Date(right.issuedAt) - new Date(left.issuedAt)),
+      };
+    });
   },
 
   getStudents() {
