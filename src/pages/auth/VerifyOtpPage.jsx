@@ -1,0 +1,137 @@
+import { useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import AuthLayout from "../../components/auth/AuthLayout";
+import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
+import { required } from "../../utils/validators";
+
+export default function VerifyOtpPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { verifyOtp } = useAuth();
+  const { showToast } = useToast();
+  const mode = location.state?.mode || "register";
+  const role = location.state?.role === "admin" ? "admin" : "student";
+  const loginRoute = role === "admin" ? "/admin/login" : "/student/login";
+  const copy = useMemo(
+    () =>
+      mode === "reset"
+        ? {
+            badge: "Verify Reset OTP",
+            title: "Confirm the password reset",
+            description:
+              "Enter the OTP that was generated on the previous screen to save the new password.",
+          }
+        : {
+            badge: "Verify Account",
+            title: "Activate the student account",
+            description:
+              "Enter the OTP generated during signup to activate the student profile.",
+          },
+    [mode]
+  );
+  const [form, setForm] = useState({
+    email: location.state?.email || "",
+    otp: "",
+  });
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const nextErrors = {};
+
+    if (!required(form.email)) {
+      nextErrors.email = "Email is required.";
+    }
+
+    if (!required(form.otp)) {
+      nextErrors.otp = "OTP is required.";
+    }
+
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length) {
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setFormError("");
+      await verifyOtp({
+        email: form.email,
+        otp: form.otp,
+        mode,
+        password: location.state?.password,
+      });
+
+      showToast({
+        title: mode === "reset" ? "Password reset complete" : "Account verified",
+        message:
+          mode === "reset"
+            ? "You can sign in with the new password now."
+            : "The student account is active and ready to use.",
+        variant: "success",
+      });
+
+      navigate(loginRoute, {
+        replace: true,
+      });
+    } catch (error) {
+      setFormError(error.response?.data?.message || "Unable to verify OTP.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <AuthLayout
+      badge={copy.badge}
+      title={copy.title}
+      description={copy.description}
+      accent={role === "admin" ? "admin" : "student"}
+      asideTitle="OTP verification is mocked and frontend-only."
+      asideCopy="This keeps the full authentication experience working without changing the existing backend."
+    >
+      {location.state?.otpCode ? (
+        <div className="alert alert-warning">
+          <strong>Demo OTP:</strong> {location.state.otpCode}
+        </div>
+      ) : null}
+
+      {formError ? <div className="alert alert-danger">{formError}</div> : null}
+
+      <form className="row g-3" onSubmit={handleSubmit}>
+        <div className="col-12">
+          <label className="form-label">Email</label>
+          <input
+            className={`form-control ${errors.email ? "is-invalid" : ""}`}
+            value={form.email}
+            onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+          />
+          {errors.email ? <div className="invalid-feedback">{errors.email}</div> : null}
+        </div>
+
+        <div className="col-12">
+          <label className="form-label">OTP</label>
+          <input
+            className={`form-control ${errors.otp ? "is-invalid" : ""}`}
+            value={form.otp}
+            onChange={(event) => setForm((current) => ({ ...current, otp: event.target.value }))}
+          />
+          {errors.otp ? <div className="invalid-feedback">{errors.otp}</div> : null}
+        </div>
+
+        <div className="col-12 d-flex flex-column flex-sm-row gap-2">
+          <button type="submit" className="btn btn-primary" disabled={submitting}>
+            {submitting ? "Verifying..." : "Verify OTP"}
+          </button>
+          <Link to={loginRoute} className="btn btn-outline-secondary">
+            Back to login
+          </Link>
+        </div>
+      </form>
+    </AuthLayout>
+  );
+}
