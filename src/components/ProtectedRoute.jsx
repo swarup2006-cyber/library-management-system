@@ -1,39 +1,31 @@
-import { useContext } from "react";
-import { Navigate, useLocation } from "react-router-dom";
-import { AuthContext } from "../context/AuthContext";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import Loader from "./Loader";
 
-export default function ProtectedRoute({ children, allowedRoles }) {
+export default function ProtectedRoute({ allowedRoles, children }) {
   const location = useLocation();
-  const { user, loading } = useContext(AuthContext);
+  const { user, loading } = useAuth();
 
   if (loading) {
-    return <Loader label="Checking session..." />;
+    return <Loader label="Checking access..." />;
   }
 
   if (!user) {
     const loginPath = allowedRoles?.includes("admin")
-      ? "/admin-login"
-      : "/student-login";
+      ? "/admin/login"
+      : "/student/login";
 
-    return (
-      <Navigate
-        to={loginPath}
-        replace
-        state={{ from: `${location.pathname}${location.search}` }}
-      />
-    );
+    return <Navigate to={loginPath} replace state={{ from: location.pathname }} />;
   }
 
   if (allowedRoles?.length && !allowedRoles.includes(user.role)) {
     return (
       <Navigate
-        to="/"
+        to={user.role === "admin" ? "/admin/dashboard" : "/student/dashboard"}
         replace
-        state={{ warningMessage: "Your account does not have access to that module." }}
       />
     );
   }
 
-  return children;
+  return children || <Outlet />;
 }
