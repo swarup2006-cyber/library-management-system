@@ -103,8 +103,8 @@ export default function ForgotPasswordPage() {
     <AuthLayout {...copy}>
       {formError ? <div className="alert alert-danger">{formError}</div> : null}
 
-      <form className="row g-3" onSubmit={handleSubmit}>
-        <div className="col-12">
+      <form className="form-grid" onSubmit={handleSubmit}>
+        <div className="form-field full-width">
           <label className="form-label">Portal email</label>
           <input
             className={`form-control ${errors.email ? "is-invalid" : ""}`}
@@ -114,7 +114,7 @@ export default function ForgotPasswordPage() {
           {errors.email ? <div className="invalid-feedback">{errors.email}</div> : null}
         </div>
 
-        <div className="col-md-6">
+        <div className="form-field">
           <label className="form-label">New password</label>
           <input
             type="password"
@@ -129,7 +129,7 @@ export default function ForgotPasswordPage() {
           ) : null}
         </div>
 
-        <div className="col-md-6">
+        <div className="form-field">
           <label className="form-label">Confirm password</label>
           <input
             type="password"
@@ -144,7 +144,7 @@ export default function ForgotPasswordPage() {
           ) : null}
         </div>
 
-        <div className="col-12 d-flex flex-column flex-sm-row gap-2">
+        <div className="form-actions full-width">
           <button type="submit" className="btn btn-primary" disabled={submitting}>
             {submitting ? "Generating OTP..." : "Generate reset OTP"}
           </button>

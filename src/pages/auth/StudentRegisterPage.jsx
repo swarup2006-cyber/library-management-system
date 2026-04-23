@@ -91,8 +91,8 @@ export default function StudentRegisterPage() {
     >
       {formError ? <div className="alert alert-danger">{formError}</div> : null}
 
-      <form className="row g-3" onSubmit={handleSubmit}>
-        <div className="col-md-6">
+      <form className="form-grid" onSubmit={handleSubmit}>
+        <div className="form-field">
           <label className="form-label">Full name</label>
           <input
             className={`form-control ${errors.name ? "is-invalid" : ""}`}
@@ -102,7 +102,7 @@ export default function StudentRegisterPage() {
           {errors.name ? <div className="invalid-feedback">{errors.name}</div> : null}
         </div>
 
-        <div className="col-md-6">
+        <div className="form-field">
           <label className="form-label">Email</label>
           <input
             className={`form-control ${errors.email ? "is-invalid" : ""}`}
@@ -112,7 +112,7 @@ export default function StudentRegisterPage() {
           {errors.email ? <div className="invalid-feedback">{errors.email}</div> : null}
         </div>
 
-        <div className="col-md-6">
+        <div className="form-field">
           <label className="form-label">Phone</label>
           <input
             className="form-control"
@@ -121,7 +121,7 @@ export default function StudentRegisterPage() {
           />
         </div>
 
-        <div className="col-md-6">
+        <div className="form-field">
           <label className="form-label">Department</label>
           <input
             className={`form-control ${errors.department ? "is-invalid" : ""}`}
@@ -135,7 +135,7 @@ export default function StudentRegisterPage() {
           ) : null}
         </div>
 
-        <div className="col-md-6">
+        <div className="form-field">
           <label className="form-label">Student ID</label>
           <input
             className="form-control"
@@ -146,7 +146,7 @@ export default function StudentRegisterPage() {
           />
         </div>
 
-        <div className="col-md-6">
+        <div className="form-field">
           <label className="form-label">Address</label>
           <input
             className="form-control"
@@ -157,7 +157,7 @@ export default function StudentRegisterPage() {
           />
         </div>
 
-        <div className="col-md-6">
+        <div className="form-field">
           <label className="form-label">Password</label>
           <input
             type="password"
@@ -172,7 +172,7 @@ export default function StudentRegisterPage() {
           ) : null}
         </div>
 
-        <div className="col-md-6">
+        <div className="form-field">
           <label className="form-label">Confirm password</label>
           <input
             type="password"
@@ -187,7 +187,7 @@ export default function StudentRegisterPage() {
           ) : null}
         </div>
 
-        <div className="col-12 d-flex flex-column flex-sm-row gap-2">
+        <div className="form-actions full-width">
           <button type="submit" className="btn btn-primary" disabled={submitting}>
             {submitting ? "Saving..." : "Create student account"}
           </button>

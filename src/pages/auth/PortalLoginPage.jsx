@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthLayout from "../../components/auth/AuthLayout";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
-import libraryService from "../../services/libraryService";
 import { required, validateEmail } from "../../utils/validators";
 
 const contentByRole = {
@@ -41,10 +40,9 @@ export default function PortalLoginPage({ role = "student" }) {
   const location = useLocation();
   const navigate = useNavigate();
   const content = contentByRole[role];
-  const demoCredentials = useMemo(() => libraryService.getDemoCredentials()[role], [role]);
   const [form, setForm] = useState({
-    email: demoCredentials.email,
-    password: demoCredentials.password,
+    email: "",
+    password: "",
   });
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -94,28 +92,10 @@ export default function PortalLoginPage({ role = "student" }) {
 
   return (
     <AuthLayout {...content}>
-      <div className="alert alert-info">
-        <div className="d-flex flex-column flex-sm-row justify-content-between gap-2">
-          <div>
-            <strong>Demo credentials</strong>
-            <div className="small mt-1">
-              {demoCredentials.email} / {demoCredentials.password}
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn btn-sm btn-outline-primary"
-            onClick={() => setForm(demoCredentials)}
-          >
-            Fill demo login
-          </button>
-        </div>
-      </div>
-
       {formError ? <div className="alert alert-danger">{formError}</div> : null}
 
-      <form className="row g-3" onSubmit={handleSubmit}>
-        <div className="col-12">
+      <form className="form-grid" onSubmit={handleSubmit}>
+        <div className="form-field full-width">
           <label className="form-label">Email</label>
           <input
             type="email"
@@ -128,7 +108,7 @@ export default function PortalLoginPage({ role = "student" }) {
           {errors.email ? <div className="invalid-feedback">{errors.email}</div> : null}
         </div>
 
-        <div className="col-12">
+        <div className="form-field full-width">
           <label className="form-label">Password</label>
           <input
             type="password"
@@ -143,7 +123,7 @@ export default function PortalLoginPage({ role = "student" }) {
           ) : null}
         </div>
 
-        <div className="col-12 d-flex flex-column flex-sm-row gap-2">
+        <div className="form-actions full-width">
           <button type="submit" className="btn btn-primary" disabled={submitting}>
             {submitting ? "Signing in..." : role === "admin" ? "Login as Admin" : "Login as Student"}
           </button>

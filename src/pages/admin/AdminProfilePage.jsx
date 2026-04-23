@@ -107,8 +107,8 @@ export default function AdminProfilePage() {
           <div className="card border-0 shadow-sm">
             <div className="card-body">
               <h3 className="h5 mb-3">Admin details</h3>
-              <form className="row g-3" onSubmit={handleProfileSave}>
-                <div className="col-md-6">
+              <form className="form-grid" onSubmit={handleProfileSave}>
+                <div className="form-field">
                   <label className="form-label">Name</label>
                   <input
                     className="form-control"
@@ -118,7 +118,7 @@ export default function AdminProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-md-6">
+                <div className="form-field">
                   <label className="form-label">Email</label>
                   <input
                     className="form-control"
@@ -128,7 +128,7 @@ export default function AdminProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-md-6">
+                <div className="form-field">
                   <label className="form-label">Phone</label>
                   <input
                     className="form-control"
@@ -138,7 +138,7 @@ export default function AdminProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-md-6">
+                <div className="form-field">
                   <label className="form-label">Department</label>
                   <input
                     className="form-control"
@@ -148,7 +148,7 @@ export default function AdminProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-12">
+                <div className="form-field full-width">
                   <label className="form-label">Address</label>
                   <input
                     className="form-control"
@@ -158,7 +158,7 @@ export default function AdminProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-12">
+                <div className="form-field full-width">
                   <label className="form-label">Bio</label>
                   <textarea
                     rows="4"
@@ -169,7 +169,7 @@ export default function AdminProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-12">
+                <div className="form-actions full-width">
                   <button type="submit" className="btn btn-primary">
                     Save admin profile
                   </button>
@@ -183,8 +183,8 @@ export default function AdminProfilePage() {
           <div className="card border-0 shadow-sm">
             <div className="card-body">
               <h3 className="h5 mb-3">Change password</h3>
-              <form className="row g-3" onSubmit={handlePasswordSave}>
-                <div className="col-12">
+              <form className="form-grid" onSubmit={handlePasswordSave}>
+                <div className="form-field full-width">
                   <label className="form-label">Current password</label>
                   <input
                     type="password"
@@ -198,7 +198,7 @@ export default function AdminProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-12">
+                <div className="form-field full-width">
                   <label className="form-label">New password</label>
                   <input
                     type="password"
@@ -212,7 +212,7 @@ export default function AdminProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-12">
+                <div className="form-field full-width">
                   <label className="form-label">Confirm password</label>
                   <input
                     type="password"
@@ -226,7 +226,7 @@ export default function AdminProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-12">
+                <div className="form-actions full-width">
                   <button type="submit" className="btn btn-outline-primary">
                     Change password
                   </button>

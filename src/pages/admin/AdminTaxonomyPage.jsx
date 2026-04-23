@@ -241,8 +241,8 @@ export default function AdminTaxonomyPage() {
           </>
         }
       >
-        <form id="taxonomy-form" className="row g-3" onSubmit={handleSave}>
-          <div className="col-12">
+        <form id="taxonomy-form" className="form-grid" onSubmit={handleSave}>
+          <div className="form-field full-width">
             <label className="form-label">Name</label>
             <input
               className="form-control"
@@ -257,7 +257,7 @@ export default function AdminTaxonomyPage() {
           </div>
 
           {editor.type === "author" ? (
-            <div className="col-12">
+            <div className="form-field full-width">
               <label className="form-label">Country</label>
               <input
                 className="form-control"
@@ -272,7 +272,7 @@ export default function AdminTaxonomyPage() {
             </div>
           ) : null}
 
-          <div className="col-12">
+          <div className="form-field full-width">
             <label className="form-label">
               {editor.type === "category" ? "Description" : "Author bio"}
             </label>

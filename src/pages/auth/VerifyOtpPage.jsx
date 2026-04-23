@@ -102,8 +102,8 @@ export default function VerifyOtpPage() {
 
       {formError ? <div className="alert alert-danger">{formError}</div> : null}
 
-      <form className="row g-3" onSubmit={handleSubmit}>
-        <div className="col-12">
+      <form className="form-grid" onSubmit={handleSubmit}>
+        <div className="form-field full-width">
           <label className="form-label">Email</label>
           <input
             className={`form-control ${errors.email ? "is-invalid" : ""}`}
@@ -113,7 +113,7 @@ export default function VerifyOtpPage() {
           {errors.email ? <div className="invalid-feedback">{errors.email}</div> : null}
         </div>
 
-        <div className="col-12">
+        <div className="form-field full-width">
           <label className="form-label">OTP</label>
           <input
             className={`form-control ${errors.otp ? "is-invalid" : ""}`}
@@ -123,7 +123,7 @@ export default function VerifyOtpPage() {
           {errors.otp ? <div className="invalid-feedback">{errors.otp}</div> : null}
         </div>
 
-        <div className="col-12 d-flex flex-column flex-sm-row gap-2">
+        <div className="form-actions full-width">
           <button type="submit" className="btn btn-primary" disabled={submitting}>
             {submitting ? "Verifying..." : "Verify OTP"}
           </button>

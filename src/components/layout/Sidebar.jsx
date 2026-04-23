@@ -12,7 +12,7 @@ export default function Sidebar({ role, navItems, open, onClose }) {
         onClick={onClose}
         aria-hidden={!open}
       />
-      <aside className={`app-sidebar ${open ? "show" : ""}`}>
+      <aside className={`sidebar ${open ? "show" : ""}`}>
         <div>
           <div className="sidebar-brand mb-4">
             <BrandLogo inverted />
@@ -32,7 +32,7 @@ export default function Sidebar({ role, navItems, open, onClose }) {
             </div>
           </div>
 
-          <nav className="nav flex-column gap-2">
+          <nav className="nav flex-column gap-2" aria-label={`${role} navigation`}>
             {navItems.map((item) => (
               <NavLink
                 key={item.to}

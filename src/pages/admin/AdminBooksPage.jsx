@@ -250,8 +250,8 @@ export default function AdminBooksPage() {
           </>
         }
       >
-        <form id="book-form" className="row g-3" onSubmit={handleSave}>
-          <div className="col-md-6">
+        <form id="book-form" className="form-grid" onSubmit={handleSave}>
+          <div className="form-field">
             <label className="form-label">Title</label>
             <input
               className="form-control"
@@ -261,7 +261,7 @@ export default function AdminBooksPage() {
               }
             />
           </div>
-          <div className="col-md-6">
+          <div className="form-field">
             <label className="form-label">Author</label>
             <select
               className="form-select"
@@ -278,7 +278,7 @@ export default function AdminBooksPage() {
               ))}
             </select>
           </div>
-          <div className="col-md-6">
+          <div className="form-field">
             <label className="form-label">Category</label>
             <select
               className="form-select"
@@ -295,7 +295,7 @@ export default function AdminBooksPage() {
               ))}
             </select>
           </div>
-          <div className="col-md-6">
+          <div className="form-field">
             <label className="form-label">ISBN</label>
             <input
               className="form-control"
@@ -305,7 +305,7 @@ export default function AdminBooksPage() {
               }
             />
           </div>
-          <div className="col-md-6">
+          <div className="form-field">
             <label className="form-label">Publisher</label>
             <input
               className="form-control"
@@ -315,7 +315,7 @@ export default function AdminBooksPage() {
               }
             />
           </div>
-          <div className="col-md-3">
+          <div className="form-field">
             <label className="form-label">Year</label>
             <input
               type="number"
@@ -326,7 +326,7 @@ export default function AdminBooksPage() {
               }
             />
           </div>
-          <div className="col-md-3">
+          <div className="form-field">
             <label className="form-label">Shelf</label>
             <input
               className="form-control"
@@ -336,7 +336,7 @@ export default function AdminBooksPage() {
               }
             />
           </div>
-          <div className="col-md-3">
+          <div className="form-field">
             <label className="form-label">Total copies</label>
             <input
               type="number"
@@ -351,7 +351,7 @@ export default function AdminBooksPage() {
               }
             />
           </div>
-          <div className="col-md-3">
+          <div className="form-field">
             <label className="form-label">Available copies</label>
             <input
               type="number"
@@ -366,7 +366,7 @@ export default function AdminBooksPage() {
               }
             />
           </div>
-          <div className="col-md-3">
+          <div className="form-field">
             <label className="form-label">Pages</label>
             <input
               type="number"
@@ -378,7 +378,7 @@ export default function AdminBooksPage() {
               }
             />
           </div>
-          <div className="col-md-5">
+          <div className="form-field">
             <label className="form-label">Language</label>
             <input
               className="form-control"
@@ -388,7 +388,7 @@ export default function AdminBooksPage() {
               }
             />
           </div>
-          <div className="col-md-4">
+          <div className="form-field">
             <label className="form-label">Cover color</label>
             <input
               type="color"
@@ -399,7 +399,7 @@ export default function AdminBooksPage() {
               }
             />
           </div>
-          <div className="col-12">
+          <div className="form-field full-width">
             <label className="form-label">Description</label>
             <textarea
               rows="4"

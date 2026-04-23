@@ -21,20 +21,20 @@ export default function AppShell({ role, navItems }) {
   );
 
   return (
-    <div className="app-layout">
+    <div className="app-container">
       <Sidebar
         role={role}
         navItems={navItems}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-      <main className="app-content">
+      <main className="main-content">
         <Navbar
           title={currentItem.label}
           subtitle={currentItem.description}
           onMenuToggle={() => setSidebarOpen(true)}
         />
-        <div className="container-fluid py-4 px-3 px-lg-4">
+        <div className="page-content">
           <Outlet />
         </div>
       </main>

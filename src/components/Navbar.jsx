@@ -15,8 +15,8 @@ export default function Navbar({ title, subtitle, onMenuToggle }) {
   };
 
   return (
-    <header className="app-topbar border-bottom">
-      <div className="d-flex align-items-center gap-3">
+    <header className="app-topbar">
+      <div className="topbar-heading">
         <button
           type="button"
           className="btn btn-outline-secondary d-lg-none topbar-control"
@@ -27,13 +27,13 @@ export default function Navbar({ title, subtitle, onMenuToggle }) {
         <Link to={user?.role === "admin" ? "/admin/dashboard" : "/student/dashboard"}>
           <BrandLogo compact />
         </Link>
-        <div>
+        <div className="topbar-copy">
           <p className="text-body-secondary small mb-1">{subtitle}</p>
           <h2 className="h5 mb-0">{title}</h2>
         </div>
       </div>
 
-      <div className="d-flex align-items-center gap-2 gap-sm-3">
+      <div className="topbar-actions">
         {user ? (
           <Link
             to={user.role === "admin" ? "/admin/profile" : "/student/notifications"}

@@ -161,8 +161,8 @@ export default function AdminCirculationPage() {
           <div className="card border-0 shadow-sm glass-surface h-100">
             <div className="card-body">
               <h3 className="h5 mb-3">Issue a book</h3>
-              <form className="row g-3" onSubmit={handleIssue}>
-                <div className="col-12">
+              <form className="form-grid" onSubmit={handleIssue}>
+                <div className="form-field full-width">
                   <label className="form-label">Student</label>
                   <select
                     className="form-select"
@@ -179,7 +179,7 @@ export default function AdminCirculationPage() {
                     ))}
                   </select>
                 </div>
-                <div className="col-12">
+                <div className="form-field full-width">
                   <label className="form-label">Book</label>
                   <select
                     className="form-select"
@@ -196,7 +196,7 @@ export default function AdminCirculationPage() {
                     ))}
                   </select>
                 </div>
-                <div className="col-12">
+                <div className="form-actions full-width">
                   <button
                     type="submit"
                     className="btn btn-primary"

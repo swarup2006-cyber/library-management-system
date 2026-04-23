@@ -139,8 +139,8 @@ export default function StudentProfilePage() {
           <div className="card border-0 shadow-sm">
             <div className="card-body">
               <h3 className="h5 mb-3">Student details</h3>
-              <form className="row g-3" onSubmit={handleProfileSave}>
-                <div className="col-md-6">
+              <form className="form-grid" onSubmit={handleProfileSave}>
+                <div className="form-field">
                   <label className="form-label">Name</label>
                   <input
                     className={`form-control ${profileErrors.name ? "is-invalid" : ""}`}
@@ -153,7 +153,7 @@ export default function StudentProfilePage() {
                     <div className="invalid-feedback">{profileErrors.name}</div>
                   ) : null}
                 </div>
-                <div className="col-md-6">
+                <div className="form-field">
                   <label className="form-label">Email</label>
                   <input
                     className={`form-control ${profileErrors.email ? "is-invalid" : ""}`}
@@ -166,7 +166,7 @@ export default function StudentProfilePage() {
                     <div className="invalid-feedback">{profileErrors.email}</div>
                   ) : null}
                 </div>
-                <div className="col-md-6">
+                <div className="form-field">
                   <label className="form-label">Phone</label>
                   <input
                     className="form-control"
@@ -176,7 +176,7 @@ export default function StudentProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-md-6">
+                <div className="form-field">
                   <label className="form-label">Department</label>
                   <input
                     className="form-control"
@@ -186,7 +186,7 @@ export default function StudentProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-12">
+                <div className="form-field full-width">
                   <label className="form-label">Address</label>
                   <input
                     className="form-control"
@@ -196,7 +196,7 @@ export default function StudentProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-12">
+                <div className="form-field full-width">
                   <label className="form-label">Bio</label>
                   <textarea
                     rows="4"
@@ -207,7 +207,7 @@ export default function StudentProfilePage() {
                     }
                   />
                 </div>
-                <div className="col-12">
+                <div className="form-actions full-width">
                   <button type="submit" className="btn btn-primary" disabled={savingProfile}>
                     {savingProfile ? "Saving..." : "Save profile"}
                   </button>
@@ -221,8 +221,8 @@ export default function StudentProfilePage() {
           <div className="card border-0 shadow-sm h-100">
             <div className="card-body">
               <h3 className="h5 mb-3">Change password</h3>
-              <form className="row g-3" onSubmit={handlePasswordChange}>
-                <div className="col-12">
+              <form className="form-grid" onSubmit={handlePasswordChange}>
+                <div className="form-field full-width">
                   <label className="form-label">Current password</label>
                   <input
                     type="password"
@@ -243,7 +243,7 @@ export default function StudentProfilePage() {
                     </div>
                   ) : null}
                 </div>
-                <div className="col-12">
+                <div className="form-field full-width">
                   <label className="form-label">New password</label>
                   <input
                     type="password"
@@ -260,7 +260,7 @@ export default function StudentProfilePage() {
                     <div className="invalid-feedback">{passwordErrors.newPassword}</div>
                   ) : null}
                 </div>
-                <div className="col-12">
+                <div className="form-field full-width">
                   <label className="form-label">Confirm new password</label>
                   <input
                     type="password"
@@ -281,7 +281,7 @@ export default function StudentProfilePage() {
                     </div>
                   ) : null}
                 </div>
-                <div className="col-12">
+                <div className="form-actions full-width">
                   <button
                     type="submit"
                     className="btn btn-outline-primary"

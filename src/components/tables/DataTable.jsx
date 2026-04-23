@@ -12,7 +12,7 @@ export default function DataTable({
   }
 
   return (
-    <div className="table-responsive">
+    <div className="table-container">
       <table className="table align-middle table-hover mb-0">
         <thead className="table-light">
           <tr>

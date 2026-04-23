@@ -103,8 +103,8 @@ export default function StudentBooksPage() {
 
       <div className="card border-0 shadow-sm mb-4">
         <div className="card-body">
-          <div className="row g-3">
-            <div className="col-md-6 col-xl-5">
+          <div className="form-grid">
+            <div className="form-field">
               <label className="form-label">Search</label>
               <input
                 className="form-control"
@@ -115,7 +115,7 @@ export default function StudentBooksPage() {
                 }
               />
             </div>
-            <div className="col-md-3">
+            <div className="form-field">
               <label className="form-label">Category</label>
               <select
                 className="form-select"
@@ -131,7 +131,7 @@ export default function StudentBooksPage() {
                 ))}
               </select>
             </div>
-            <div className="col-md-3 col-xl-2">
+            <div className="form-field">
               <label className="form-label">Availability</label>
               <select
                 className="form-select"
@@ -145,10 +145,10 @@ export default function StudentBooksPage() {
                 <option value="issued">Fully issued</option>
               </select>
             </div>
-            <div className="col-xl-2 d-flex align-items-end">
+            <div className="form-actions full-width">
               <button
                 type="button"
-                className="btn btn-outline-secondary w-100"
+                className="btn btn-outline-secondary"
                 onClick={() =>
                   setFilters({
                     search: "",
