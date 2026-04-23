@@ -1,5 +1,7 @@
 import axios from "axios";
 
+// This file acts as a mock API layer backed by localStorage so the frontend
+// can be fully interactive without requiring any backend changes.
 const STORAGE_KEY = "lms_mock_database_v3";
 const SESSION_KEY = "lms_mock_session_v3";
 const NETWORK_DELAY = 320;
