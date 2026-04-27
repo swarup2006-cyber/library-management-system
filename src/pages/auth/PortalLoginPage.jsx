@@ -47,6 +47,7 @@ export default function PortalLoginPage({ role = "student" }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -110,14 +111,25 @@ export default function PortalLoginPage({ role = "student" }) {
 
         <div className="form-field full-width">
           <label className="form-label">Password</label>
-          <input
-            type="password"
-            className={`form-control ${errors.password ? "is-invalid" : ""}`}
-            value={form.password}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, password: event.target.value }))
-            }
-          />
+          <div className="password-input-group">
+            <input
+              type={showPassword ? "text" : "password"}
+              className={`form-control ${errors.password ? "is-invalid" : ""}`}
+              value={form.password}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, password: event.target.value }))
+              }
+            />
+            <button
+              type="button"
+              className="password-toggle"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-pressed={showPassword}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
           {errors.password ? (
             <div className="invalid-feedback">{errors.password}</div>
           ) : null}

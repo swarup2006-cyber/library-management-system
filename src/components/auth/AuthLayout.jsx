@@ -10,7 +10,7 @@ export default function AuthLayout({
   children,
 }) {
   return (
-    <div className="auth-shell">
+    <div className={`auth-shell auth-shell-${accent}`}>
       <div className="auth-layout">
         <div className="auth-hero-column">
           <div className={`auth-hero auth-hero-${accent}`}>
@@ -22,10 +22,12 @@ export default function AuthLayout({
         </div>
 
         <div className="auth-main">
-          <div className="auth-card card border-0 shadow-lg w-100">
+          <div className={`auth-card auth-card-${accent} card border-0 shadow-lg w-100`}>
             <div className="card-body p-4 p-lg-5">
               <BrandLogo compact />
-              <span className="text-uppercase text-primary small fw-semibold d-inline-block mt-4">
+              <span
+                className={`auth-kicker auth-kicker-${accent} text-uppercase small fw-semibold d-inline-block mt-4`}
+              >
                 {badge}
               </span>
               <h2 className="h2 mt-2 mb-2">{title}</h2>

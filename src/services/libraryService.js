@@ -1,4 +1,5 @@
 import axios from "axios";
+import API from "./api";
 
 // This file acts as a mock API layer backed by localStorage so the frontend
 // can be fully interactive without requiring any backend changes.
@@ -873,7 +874,41 @@ const libraryService = {
     });
   },
 
-  verifyOtp({ email, otp, mode = "register", password = "" }) {
+  async verifyOtp({ email, otp, mode = "register", password = "", role = "student" }) {
+    if (mode === "reset") {
+      const db = getDatabase();
+      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedRole = role === "admin" ? "admin" : "student";
+      const user = db.users.find((item) => item.email.toLowerCase() === normalizedEmail);
+
+      if (!user) {
+        apiError("No account was found for this email.", 404);
+      }
+
+      if (user.role !== normalizedRole) {
+        apiError("No matching account was found for this portal.", 404);
+      }
+
+      if (!password) {
+        apiError("Start the password reset flow again to set a new password.");
+      }
+
+      await API.post("/password-reset/verify", {
+        email: normalizedEmail,
+        otp: otp.trim(),
+        role: normalizedRole,
+      });
+
+      user.password = password;
+      user.otpCode = "";
+      user.otpPurpose = "";
+      saveDatabase(db);
+
+      return {
+        message: "Password reset complete. Sign in with your new password.",
+      };
+    }
+
     return request(() => {
       const db = getDatabase();
       const normalizedEmail = email.trim().toLowerCase();
@@ -891,10 +926,6 @@ const libraryService = {
         user.verified = true;
       }
 
-      if (mode === "reset") {
-        user.password = password;
-      }
-
       user.otpCode = "";
       user.otpPurpose = "";
 
@@ -909,27 +940,22 @@ const libraryService = {
     });
   },
 
-  requestPasswordReset({ email, role }) {
-    return request(() => {
-      const db = getDatabase();
-      const normalizedEmail = email.trim().toLowerCase();
-      const user = db.users.find((item) => item.email.toLowerCase() === normalizedEmail);
+  async requestPasswordReset({ email, role }) {
+    const db = getDatabase();
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedRole = role === "admin" ? "admin" : "student";
+    const user = db.users.find((item) => item.email.toLowerCase() === normalizedEmail);
 
-      if (!user || user.role !== role) {
-        apiError("No matching account was found for this portal.", 404);
-      }
+    if (!user || user.role !== normalizedRole) {
+      apiError("No matching account was found for this portal.", 404);
+    }
 
-      const otpCode = String(Math.floor(100000 + Math.random() * 900000));
-      user.otpCode = otpCode;
-      user.otpPurpose = "reset";
-      saveDatabase(db);
-
-      return {
-        message: "Reset OTP generated. Use it on the verification screen.",
-        email: normalizedEmail,
-        otpCode,
-      };
+    const { data } = await API.post("/password-reset/request", {
+      email: normalizedEmail,
+      role: normalizedRole,
     });
+
+    return data;
   },
 
   updateProfile(payload) {

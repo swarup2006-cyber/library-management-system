@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AuthLayout from "../../components/auth/AuthLayout";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
-import { required, validateEmail, validatePassword } from "../../utils/validators";
+import { validateEmail, validatePassword } from "../../utils/validators";
 
 export default function ForgotPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -17,10 +17,10 @@ export default function ForgotPasswordPage() {
         ? {
             badge: "Admin Reset",
             title: "Reset the admin password",
-            description: "Generate a reset OTP for the admin portal and verify it on the next screen.",
+            description: "Send a reset OTP to the admin email address and verify it on the next screen.",
             asideTitle: "Admin recovery stays separate from student authentication.",
             asideCopy:
-              "Reset admin credentials without changing the backend. The OTP flow is mocked and kept entirely in the frontend.",
+              "A one-time password will be sent to the admin email so the reset stays inside the correct portal flow.",
             accent: "admin",
             loginRoute: "/admin/login",
           }
@@ -28,10 +28,10 @@ export default function ForgotPasswordPage() {
             badge: "Student Reset",
             title: "Reset the student password",
             description:
-              "Generate a reset OTP for the student portal and verify it on the next screen.",
+              "Send a reset OTP to the student email address and verify it on the next screen.",
             asideTitle: "Password recovery is built into the student access flow.",
             asideCopy:
-              "Students can request an OTP, verify it, and set a new password without leaving the LMS interface.",
+              "Students will receive the OTP in their inbox before setting a new password in the LMS interface.",
             accent: "student",
             loginRoute: "/student/login",
           },
@@ -77,8 +77,8 @@ export default function ForgotPasswordPage() {
       });
 
       showToast({
-        title: "OTP generated",
-        message: "Use the OTP on the verification screen to finish the password reset.",
+        title: "OTP sent",
+        message: "Check the user email inbox for the reset OTP, then enter it on the next screen.",
         variant: "success",
       });
 
@@ -89,7 +89,6 @@ export default function ForgotPasswordPage() {
           role,
           email: response.email,
           password: form.newPassword,
-          otpCode: response.otpCode,
         },
       });
     } catch (error) {
@@ -146,7 +145,7 @@ export default function ForgotPasswordPage() {
 
         <div className="form-actions full-width">
           <button type="submit" className="btn btn-primary" disabled={submitting}>
-            {submitting ? "Generating OTP..." : "Generate reset OTP"}
+            {submitting ? "Sending OTP..." : "Send reset OTP"}
           </button>
           <Link to={copy.loginRoute} className="btn btn-outline-secondary">
             Back to login

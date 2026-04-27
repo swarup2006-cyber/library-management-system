@@ -1,8 +1,14 @@
+const crypto = require("crypto");
 const User = require("../models/userModel");
+const PasswordResetOtp = require("../models/passwordResetOtpModel");
 const sendToken = require("../utils/sendToken");
+const { sendPasswordResetOtpEmail } = require("../utils/mailer");
 
 const generateOtp = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
+const RESET_OTP_WINDOW_MS = 10 * 60 * 1000;
+const hashOtp = (otp) =>
+  crypto.createHash("sha256").update(otp).digest("hex");
 
 // Register
 exports.register = async (req, res) => {
@@ -91,6 +97,90 @@ exports.verifyOtp = async (req, res) => {
   await user.save();
 
   res.json({ success: true, message: "Account verified successfully." });
+};
+
+exports.requestPasswordReset = async (req, res) => {
+  const { email, role } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required." });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedRole = role === "admin" ? "admin" : "student";
+  const otp = generateOtp();
+
+  await PasswordResetOtp.findOneAndUpdate(
+    {
+      email: normalizedEmail,
+      role: normalizedRole,
+      purpose: "password-reset",
+    },
+    {
+      email: normalizedEmail,
+      role: normalizedRole,
+      purpose: "password-reset",
+      otpHash: hashOtp(otp),
+      expiresAt: new Date(Date.now() + RESET_OTP_WINDOW_MS),
+    },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
+    }
+  );
+
+  await sendPasswordResetOtpEmail({
+    to: normalizedEmail,
+    otp,
+    role: normalizedRole,
+  });
+
+  res.json({
+    success: true,
+    message: "A password reset OTP has been sent to your email address.",
+    email: normalizedEmail,
+  });
+};
+
+exports.verifyPasswordResetOtp = async (req, res) => {
+  const { email, otp, role } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ message: "Email and OTP are required." });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedRole = role === "admin" ? "admin" : "student";
+  const resetOtp = await PasswordResetOtp.findOne({
+    email: normalizedEmail,
+    role: normalizedRole,
+    purpose: "password-reset",
+  });
+
+  if (!resetOtp) {
+    return res.status(400).json({
+      message: "No active reset OTP was found. Request a new OTP and try again.",
+    });
+  }
+
+  if (resetOtp.expiresAt < new Date()) {
+    await resetOtp.deleteOne();
+    return res.status(400).json({
+      message: "The reset OTP has expired. Request a new OTP and try again.",
+    });
+  }
+
+  if (resetOtp.otpHash !== hashOtp(otp.trim())) {
+    return res.status(400).json({ message: "Invalid OTP." });
+  }
+
+  await resetOtp.deleteOne();
+
+  res.json({
+    success: true,
+    message: "OTP verified successfully.",
+  });
 };
 
 // Login
