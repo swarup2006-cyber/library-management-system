@@ -10,6 +10,14 @@ const userRoutes = require("./routes/userRoutes");
 const { errorMiddleware } = require("./middlewares/errorMiddleware");
 
 const app = express();
+const allowedOrigins = (
+  process.env.FRONTEND_URLS ||
+  process.env.FRONTEND_URL ||
+  "http://localhost:5173,http://localhost:4173"
+)
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Connect DB
 connectDB();
@@ -18,7 +26,13 @@ connectDB();
 app.use(express.json());
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origin ${origin} is not allowed by CORS.`));
+    },
     credentials: true,
   })
 );

@@ -46,6 +46,18 @@ export default function ForgotPasswordPage() {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  const getResetErrorMessage = (error) => {
+    if (error.response?.data?.message) {
+      return error.response.data.message;
+    }
+
+    if (error.request) {
+      return "Password reset service is not reachable. Start the backend server on port 4000 and try again.";
+    }
+
+    return "Unable to start password reset.";
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     const nextErrors = {};
@@ -92,7 +104,7 @@ export default function ForgotPasswordPage() {
         },
       });
     } catch (error) {
-      setFormError(error.response?.data?.message || "Unable to start password reset.");
+      setFormError(getResetErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
