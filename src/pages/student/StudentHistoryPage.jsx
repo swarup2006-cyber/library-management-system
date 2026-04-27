@@ -36,7 +36,9 @@ export default function StudentHistoryPage() {
   const summary = useMemo(
     () => ({
       active: loans.filter((loan) => loan.status === "Issued" || loan.status === "Overdue").length,
-      requested: loans.filter((loan) => loan.status === "Return Requested").length,
+      pending: loans.filter(
+        (loan) => loan.status === "Issue Requested" || loan.status === "Return Requested"
+      ).length,
       returned: loans.filter((loan) => loan.status === "Returned").length,
       fines: loans.reduce((sum, loan) => sum + loan.fineAmount, 0),
     }),
@@ -82,8 +84,9 @@ export default function StudentHistoryPage() {
     },
     {
       key: "issuedAt",
-      label: "Issued",
-      render: (row) => formatDate(row.issuedAt),
+      label: "Requested / Issued",
+      render: (row) =>
+        formatDate(row.status === "Issue Requested" ? row.issueRequestedAt : row.issuedAt),
     },
     {
       key: "dueAt",
@@ -108,6 +111,10 @@ export default function StudentHistoryPage() {
           return <StatusBadge status="Returned" />;
         }
 
+        if (row.status === "Issue Requested") {
+          return <span className="text-body-secondary small">Waiting for admin to issue</span>;
+        }
+
         if (row.status === "Return Requested") {
           return <span className="text-body-secondary small">Waiting for admin approval</span>;
         }
@@ -130,8 +137,8 @@ export default function StudentHistoryPage() {
     <>
       <PageHeader
         eyebrow="Issue History"
-        title="Issued and returned books"
-        description="Students now send a return request first. Admin approval closes the loan."
+        title="Requests, issued and returned books"
+        description="Issue requests and return requests now wait for admin approval before the record changes."
       />
 
       {error ? <div className="alert alert-danger">{error}</div> : null}
@@ -139,9 +146,9 @@ export default function StudentHistoryPage() {
       <div className="row g-3 mb-4">
         <StatCard label="Issued" value={summary.active} helper="Books still in progress" accent="primary" icon="issue" />
         <StatCard
-          label="Return Requested"
-          value={summary.requested}
-          helper="Awaiting admin approval"
+          label="Pending Approval"
+          value={summary.pending}
+          helper="Issue and return requests waiting for admin"
           accent="warning"
           icon="return"
         />
@@ -167,7 +174,7 @@ export default function StudentHistoryPage() {
             columns={columns}
             rows={loans}
             emptyTitle="No loan records yet"
-            emptyDescription="Issue a book from the catalog and your history will appear here."
+            emptyDescription="Request a book from the catalog and your history will appear here."
           />
         </div>
       </div>

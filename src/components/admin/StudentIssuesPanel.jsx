@@ -11,6 +11,7 @@ export default function StudentIssuesPanel({
   loading,
   error,
   busyId,
+  onApproveIssue,
   onReturn,
   onApprove,
 }) {
@@ -28,8 +29,9 @@ export default function StudentIssuesPanel({
       },
       {
         key: "issueDate",
-        label: "Issue Date",
-        render: (row) => formatDate(row.issueDate || row.issuedAt),
+        label: "Requested / Issued",
+        render: (row) =>
+          formatDate(row.status === "Issue Requested" ? row.issueRequestedAt : row.issueDate || row.issuedAt),
       },
       { key: "dueAt", label: "Due Date", render: (row) => formatDate(row.dueAt) },
       {
@@ -46,6 +48,19 @@ export default function StudentIssuesPanel({
         key: "actions",
         label: "Action",
         render: (row) => {
+          if (row.status === "Issue Requested") {
+            return (
+              <button
+                type="button"
+                className="btn btn-sm btn-primary"
+                disabled={busyId === row.id}
+                onClick={() => onApproveIssue(row)}
+              >
+                {busyId === row.id ? "Approving..." : "Approve Issue"}
+              </button>
+            );
+          }
+
           if (row.status === "Return Requested") {
             return (
               <button
@@ -76,10 +91,10 @@ export default function StudentIssuesPanel({
         },
       },
     ],
-    [busyId, onApprove, onReturn]
+    [busyId, onApprove, onApproveIssue, onReturn]
   );
 
-  const activeIssues = issues.filter((issue) => issue.status !== "Returned").length;
+  const openItems = issues.filter((issue) => issue.status !== "Returned").length;
   const fineDue = issues
     .filter((issue) => issue.status !== "Returned")
     .reduce((sum, issue) => sum + (issue.fineAmount ?? issue.fine ?? 0), 0);
@@ -89,9 +104,9 @@ export default function StudentIssuesPanel({
       <div className="card-body">
         <div className="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
           <div>
-            <h3 className="h5 mb-1">Issued books for selected student</h3>
+            <h3 className="h5 mb-1">Requests and issued books for selected student</h3>
             <p className="text-body-secondary mb-0">
-              Choosing a student loads the full issue context instantly for returns and approvals.
+              Choosing a student loads request approvals, returns, and the full issue context instantly.
             </p>
           </div>
 
@@ -99,7 +114,7 @@ export default function StudentIssuesPanel({
             <div className="d-flex flex-wrap gap-2">
               <span className="meta-pill">{student.name}</span>
               <span className="meta-pill">{student.studentId || "Student record"}</span>
-              <span className="meta-pill">{activeIssues} active</span>
+              <span className="meta-pill">{openItems} open</span>
               <span className="meta-pill">{formatCurrency(fineDue)} fine</span>
             </div>
           ) : null}
@@ -118,8 +133,8 @@ export default function StudentIssuesPanel({
           <DataTable
             columns={columns}
             rows={issues}
-            emptyTitle="No books issued for this student"
-            emptyDescription="Issue a new book from the section above and it will appear here immediately."
+            emptyTitle="No requests or issued books for this student"
+            emptyDescription="Issue a new book or wait for a student request and it will appear here."
           />
         )}
       </div>

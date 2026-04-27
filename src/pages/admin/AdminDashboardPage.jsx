@@ -53,7 +53,7 @@ export default function AdminDashboardPage() {
       <DashboardHero
         eyebrow="Admin Dashboard"
         title="Operate BookHeaven from one premium control deck"
-        description="Monitor circulation, approve return requests, track fines, and manage the collection in a darker, quieter workspace."
+        description="Monitor circulation, approve issue and return requests, track fines, and manage the collection in a darker, quieter workspace."
         actions={
           <>
             <Link to="/admin/circulation" className="btn btn-primary hero-button">
@@ -67,7 +67,10 @@ export default function AdminDashboardPage() {
         aside={
           <div className="glass-panel">
             <p className="text-uppercase small fw-semibold text-info mb-2">Pending focus</p>
-            <h2 className="h4 mb-3">{data.stats.pendingReturns} returns awaiting approval</h2>
+            <h2 className="h4 mb-2">{data.stats.pendingApprovals} approvals awaiting action</h2>
+            <p className="small text-body-secondary mb-3">
+              {data.stats.pendingIssues} issue requests and {data.stats.pendingReturns} return requests are waiting.
+            </p>
             <div className="d-grid gap-3">
               {data.overdueLoans.slice(0, 3).map((loan) => (
                 <div key={loan.id} className="glass-list-item">
@@ -147,11 +150,17 @@ export default function AdminDashboardPage() {
                     <div>
                       <strong>{loan.book?.title}</strong>
                       <p className="small text-body-secondary mb-1">
-                        {loan.student?.name} - due {formatDate(loan.dueAt)}
+                        {loan.status === "Issue Requested"
+                          ? `${loan.student?.name} - requested ${formatDate(loan.issueRequestedAt)}`
+                          : `${loan.student?.name} - due ${formatDate(loan.dueAt)}`}
                       </p>
                       <div className="d-flex flex-wrap gap-2">
                         <StatusBadge status={loan.status} />
-                        <span className="meta-pill">Issued {formatDate(loan.issuedAt)}</span>
+                        <span className="meta-pill">
+                          {loan.status === "Issue Requested"
+                            ? `Requested ${formatDate(loan.issueRequestedAt)}`
+                            : `Issued ${formatDate(loan.issuedAt)}`}
+                        </span>
                       </div>
                     </div>
                     <div className="text-lg-end">

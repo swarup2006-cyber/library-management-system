@@ -40,14 +40,14 @@ export default function BookDetailsPage() {
       await loadBook();
       await refreshUser();
       showToast({
-        title: "Book issued",
+        title: "Issue request sent",
         message: response.message,
         variant: "success",
       });
     } catch (requestError) {
       showToast({
-        title: "Issue failed",
-        message: requestError.response?.data?.message || "Unable to issue this book.",
+        title: "Request failed",
+        message: requestError.response?.data?.message || "Unable to send this issue request.",
         variant: "danger",
       });
     } finally {
@@ -64,13 +64,21 @@ export default function BookDetailsPage() {
   }
 
   const { book } = data;
+  const hasExistingRequest = Boolean(book.currentUserLoanStatus);
+  const issueButtonLabel = busy
+    ? "Sending..."
+    : book.currentUserLoanStatus === "Issue Requested"
+      ? "Requested"
+      : book.currentUserLoanStatus
+        ? "Already issued"
+        : "Request issue";
 
   return (
     <>
       <PageHeader
         eyebrow="Book Details"
         title={book.title}
-        description={`${book.authorName} • ${book.categoryName} • Shelf ${book.shelf}`}
+        description={`${book.authorName} - ${book.categoryName} - Shelf ${book.shelf}`}
         actions={
           <>
             <Link to="/student/books" className="btn btn-outline-secondary">
@@ -80,21 +88,27 @@ export default function BookDetailsPage() {
               type="button"
               className="btn btn-primary"
               onClick={handleBorrow}
-              disabled={book.copiesAvailable === 0 || busy}
+              disabled={book.copiesAvailable === 0 || busy || hasExistingRequest}
             >
-              {busy ? "Issuing..." : "Issue book"}
+              {issueButtonLabel}
             </button>
           </>
         }
       />
 
       {error ? <div className="alert alert-danger">{error}</div> : null}
+      {book.currentUserLoanStatus === "Issue Requested" ? (
+        <div className="alert alert-info">Your request is waiting for admin approval.</div>
+      ) : null}
 
       <div className="row g-4">
         <div className="col-lg-7">
           <div className="card border-0 shadow-sm h-100">
             <div className="card-body">
-              <span className="book-swatch book-swatch-lg mb-4" style={{ backgroundColor: book.coverTone }} />
+              <span
+                className="book-swatch book-swatch-lg mb-4"
+                style={{ backgroundColor: book.coverTone }}
+              />
               <p className="text-body-secondary">{book.description}</p>
               <div className="row row-cols-1 row-cols-md-2 g-3 mt-2">
                 <div className="col">
@@ -140,7 +154,9 @@ export default function BookDetailsPage() {
                       <StatusBadge status={loan.status} />
                     </div>
                     <p className="small text-body-secondary mb-1">
-                      Issued {formatDate(loan.issuedAt)} • Due {formatDate(loan.dueAt)}
+                      {loan.status === "Issue Requested"
+                        ? `Requested ${formatDate(loan.issueRequestedAt)} - Awaiting admin approval`
+                        : `Issued ${formatDate(loan.issuedAt)} - Due ${formatDate(loan.dueAt)}`}
                     </p>
                     <p className="small mb-0">Fine: {formatCurrency(loan.fineAmount)}</p>
                   </div>

@@ -74,7 +74,9 @@ export default function StudentDashboardPage() {
                   <div>
                     <strong>{loan.book?.title}</strong>
                     <p className="small text-body-secondary mb-0">
-                      Due {formatDate(loan.dueAt)}
+                      {loan.status === "Issue Requested"
+                        ? `Requested ${formatDate(loan.issueRequestedAt)}`
+                        : `Due ${formatDate(loan.dueAt)}`}
                     </p>
                   </div>
                   <StatusBadge status={loan.status} />
@@ -83,7 +85,7 @@ export default function StudentDashboardPage() {
               {!data.activeLoans.length ? (
                 <div className="glass-list-item">
                   <p className="small mb-0 text-body-secondary">
-                    No issued books right now. The catalog is ready when you are.
+                    No open requests or issued books right now. The catalog is ready when you are.
                   </p>
                 </div>
               ) : null}
@@ -103,9 +105,9 @@ export default function StudentDashboardPage() {
           icon="books"
         />
         <StatCard
-          label="Issued Books"
+          label="Open Items"
           value={data.summary.booksIssued}
-          helper="Loans still active or awaiting approval"
+          helper="Issue requests and active loans still in progress"
           accent="warning"
           icon="issue"
         />
@@ -133,7 +135,7 @@ export default function StudentDashboardPage() {
                 <div>
                   <h3 className="h5 mb-1">Current reading desk</h3>
                   <p className="text-body-secondary small mb-0">
-                    Active issues, return requests, due dates, and frozen fines.
+                    Issue requests, active loans, return requests, due dates, and frozen fines.
                   </p>
                 </div>
                 <Link to="/student/history" className="btn btn-sm btn-outline-secondary">
@@ -149,8 +151,14 @@ export default function StudentDashboardPage() {
                       <p className="small text-body-secondary mb-1">{loan.book?.authorName}</p>
                       <div className="d-flex flex-wrap gap-2">
                         <StatusBadge status={loan.status} />
-                        <span className="meta-pill">Issued {formatDate(loan.issuedAt)}</span>
-                        <span className="meta-pill">Due {formatDate(loan.dueAt)}</span>
+                        {loan.status === "Issue Requested" ? (
+                          <span className="meta-pill">Requested {formatDate(loan.issueRequestedAt)}</span>
+                        ) : (
+                          <>
+                            <span className="meta-pill">Issued {formatDate(loan.issuedAt)}</span>
+                            <span className="meta-pill">Due {formatDate(loan.dueAt)}</span>
+                          </>
+                        )}
                       </div>
                     </div>
                     <div className="text-lg-end">
@@ -159,6 +167,13 @@ export default function StudentDashboardPage() {
                     </div>
                   </div>
                 ))}
+                {!data.activeLoans.length ? (
+                  <div className="glass-list-item">
+                    <p className="small mb-0 text-body-secondary">
+                      Your open requests and active loans will appear here.
+                    </p>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

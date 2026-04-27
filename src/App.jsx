@@ -32,7 +32,7 @@ const studentNavItems = [
   {
     to: "/student/books",
     label: "Books",
-    description: "Search, filter, and issue books",
+    description: "Search, filter, and request books",
   },
   {
     to: "/student/history",
@@ -75,7 +75,7 @@ const adminNavItems = [
   {
     to: "/admin/circulation",
     label: "Issue / Return",
-    description: "Issue books and approve returns",
+    description: "Issue books and approve student requests",
   },
   {
     to: "/admin/reports",

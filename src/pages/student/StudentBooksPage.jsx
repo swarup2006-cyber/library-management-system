@@ -67,19 +67,39 @@ export default function StudentBooksPage() {
       await loadBooks();
       await refreshUser();
       showToast({
-        title: "Book issued",
+        title: "Issue request sent",
         message: response.message,
         variant: "success",
       });
     } catch (requestError) {
       showToast({
-        title: "Issue failed",
-        message: requestError.response?.data?.message || "Unable to issue this book.",
+        title: "Request failed",
+        message: requestError.response?.data?.message || "Unable to send this issue request.",
         variant: "danger",
       });
     } finally {
       setBusyBookId("");
     }
+  };
+
+  const getBorrowButtonLabel = (book) => {
+    if (busyBookId === book.id) {
+      return "Sending...";
+    }
+
+    if (book.currentUserLoanStatus === "Issue Requested") {
+      return "Requested";
+    }
+
+    if (book.currentUserLoanStatus) {
+      return "Already issued";
+    }
+
+    if (book.copiesAvailable === 0) {
+      return "Unavailable";
+    }
+
+    return "Request issue";
   };
 
   if (loading) {
@@ -94,7 +114,7 @@ export default function StudentBooksPage() {
         description="Search by title, author, ISBN, category, and availability."
         actions={
           <Link to="/student/history" className="btn btn-outline-secondary">
-            My issued books
+            My requests and loans
           </Link>
         }
       />
@@ -197,12 +217,19 @@ export default function StudentBooksPage() {
                   <button
                     type="button"
                     className="btn btn-primary w-100"
-                    disabled={book.copiesAvailable === 0 || busyBookId === book.id}
+                    disabled={
+                      book.copiesAvailable === 0 ||
+                      busyBookId === book.id ||
+                      Boolean(book.currentUserLoanStatus)
+                    }
                     onClick={() => handleBorrow(book.id)}
                   >
-                    {busyBookId === book.id ? "Issuing..." : "Issue"}
+                    {getBorrowButtonLabel(book)}
                   </button>
                 </div>
+                {book.currentUserLoanStatus === "Issue Requested" ? (
+                  <p className="small text-primary mt-2 mb-0">Admin approval is pending for this title.</p>
+                ) : null}
               </div>
             </div>
           </div>

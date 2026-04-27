@@ -491,6 +491,9 @@ const setSession = (session) => {
 
 const getLoanMeta = (loan) => {
   const today = startOfToday();
+  const issueRequestedDate = loan.issueRequestedAt
+    ? new Date(loan.issueRequestedAt)
+    : null;
   const dueDate = loan.dueAt ? new Date(loan.dueAt) : null;
   const returnRequestedDate = loan.returnRequestedAt
     ? new Date(loan.returnRequestedAt)
@@ -507,6 +510,8 @@ const getLoanMeta = (loan) => {
     status = "Returned";
   } else if (returnRequestedDate) {
     status = "Return Requested";
+  } else if (issueRequestedDate && !loan.issuedAt) {
+    status = "Issue Requested";
   } else {
     status = overdueDays > 0 ? "Overdue" : "Issued";
   }
@@ -609,10 +614,36 @@ const pushNotificationsToAdmins = (db, notification) => {
     .forEach((admin) => pushNotification(db, { userId: admin.id, ...notification }));
 };
 
+const getLoanTimelineValue = (loan) =>
+  loan.issueRequestedAt || loan.issuedAt || loan.returnRequestedAt || loan.returnedAt || "";
+
+const getLoanTimelineTime = (loan) => {
+  const value = getLoanTimelineValue(loan);
+  return value ? new Date(value).getTime() : 0;
+};
+
+const sortLoansNewestFirst = (left, right) => getLoanTimelineTime(right) - getLoanTimelineTime(left);
+
 const activeLoanForBookAndStudent = (db, studentId, bookId) =>
   db.loans.find(
     (loan) => loan.studentId === studentId && loan.bookId === bookId && !loan.returnedAt
   );
+
+const enrichBookForCurrentStudent = (db, book) => {
+  const session = getSession();
+  const currentUser = session?.userId ? getUserById(db, session.userId) : null;
+
+  if (currentUser?.role !== "student") {
+    return clone(book);
+  }
+
+  const activeLoan = activeLoanForBookAndStudent(db, currentUser.id, book.id);
+
+  return {
+    ...clone(book),
+    currentUserLoanStatus: activeLoan ? getLoanMeta(activeLoan).status : "",
+  };
+};
 
 // Shared admin-side return logic so direct returns and approvals stay in sync.
 const finalizeAdminReturn = (
@@ -626,6 +657,10 @@ const finalizeAdminReturn = (
 
   if (loan.returnedAt) {
     apiError("This loan has already been returned.");
+  }
+
+  if (!loan.issuedAt) {
+    apiError("This issue request has not been approved yet.");
   }
 
   if (requireReturnRequest && !loan.returnRequestedAt) {
@@ -658,7 +693,7 @@ const buildStudentDashboard = (db, studentId) => {
   const loans = db.loans
     .filter((loan) => loan.studentId === studentId)
     .map((loan) => enrichLoan(db, loan))
-    .sort((left, right) => new Date(right.issuedAt) - new Date(left.issuedAt));
+    .sort(sortLoansNewestFirst);
 
   const activeLoans = loans.filter((loan) => loan.status !== "Returned");
   const dueSoon = activeLoans.filter(
@@ -695,9 +730,12 @@ const buildStudentDashboard = (db, studentId) => {
 const buildAdminDashboard = (db) => {
   const students = db.users.filter((user) => user.role === "student");
   const loans = db.loans.map((loan) => enrichLoan(db, loan));
-  const issuedLoans = loans.filter((loan) => loan.status !== "Returned");
+  const issuedLoans = loans.filter((loan) =>
+    ["Issued", "Overdue", "Return Requested"].includes(loan.status)
+  );
   const overdueLoans = loans.filter((loan) => loan.status === "Overdue");
   const returnedLoans = loans.filter((loan) => loan.status === "Returned");
+  const pendingIssueLoans = loans.filter((loan) => loan.status === "Issue Requested");
   const pendingReturnLoans = loans.filter((loan) => loan.status === "Return Requested");
   const totalFine = loans.reduce((sum, loan) => sum + loan.fineAmount, 0);
 
@@ -708,13 +746,15 @@ const buildAdminDashboard = (db) => {
       totalStudents: students.length,
       issuedBooks: issuedLoans.length,
       returnedBooks: returnedLoans.length,
+      pendingIssues: pendingIssueLoans.length,
       pendingReturns: pendingReturnLoans.length,
+      pendingApprovals: pendingIssueLoans.length + pendingReturnLoans.length,
       overdueBooks: overdueLoans.length,
       availableBooks: db.books.reduce((sum, book) => sum + book.copiesAvailable, 0),
       finesCollected: totalFine,
     },
     recentLoans: loans
-      .sort((left, right) => new Date(right.issuedAt) - new Date(left.issuedAt))
+      .sort(sortLoansNewestFirst)
       .slice(0, 6),
     overdueLoans: overdueLoans.slice(0, 6),
     recentStudents: students
@@ -724,7 +764,9 @@ const buildAdminDashboard = (db) => {
     popularBooks: db.books
       .map((book) => ({
         ...book,
-        activeBorrowCount: db.loans.filter((loan) => loan.bookId === book.id).length,
+        activeBorrowCount: db.loans.filter(
+          (loan) => loan.bookId === book.id && getLoanMeta(loan).status !== "Issue Requested"
+        ).length,
       }))
       .sort((left, right) => right.activeBorrowCount - left.activeBorrowCount)
       .slice(0, 5),
@@ -1009,7 +1051,9 @@ const libraryService = {
     return request(() => {
       const db = getDatabase();
       return {
-        books: clone(db.books).sort((left, right) => left.title.localeCompare(right.title)),
+        books: db.books
+          .map((book) => enrichBookForCurrentStudent(db, book))
+          .sort((left, right) => left.title.localeCompare(right.title)),
       };
     });
   },
@@ -1026,10 +1070,10 @@ const libraryService = {
       const history = db.loans
         .filter((loan) => loan.bookId === bookId)
         .map((loan) => enrichLoan(db, loan))
-        .sort((left, right) => new Date(right.issuedAt) - new Date(left.issuedAt));
+        .sort(sortLoansNewestFirst);
 
       return {
-        book: clone(book),
+        book: enrichBookForCurrentStudent(db, book),
         history,
       };
     });
@@ -1043,7 +1087,7 @@ const libraryService = {
         loans: db.loans
           .filter((loan) => loan.studentId === student.id)
           .map((loan) => enrichLoan(db, loan))
-          .sort((left, right) => new Date(right.issuedAt) - new Date(left.issuedAt)),
+          .sort(sortLoansNewestFirst),
       };
     });
   },
@@ -1097,35 +1141,45 @@ const libraryService = {
         apiError("This title is currently unavailable.");
       }
 
-      if (activeLoanForBookAndStudent(db, student.id, book.id)) {
-        apiError("You already have this title issued.");
+      const existingLoan = activeLoanForBookAndStudent(db, student.id, book.id);
+
+      if (existingLoan) {
+        const existingStatus = getLoanMeta(existingLoan).status;
+        apiError(
+          existingStatus === "Issue Requested"
+            ? "You already requested this title. Please wait for admin approval."
+            : "You already have this title issued."
+        );
       }
 
-      book.copiesAvailable -= 1;
-
-      const loan = {
+      db.loans.unshift({
         id: createId("loan"),
         bookId: book.id,
         studentId: student.id,
-        issuedBy: student.id,
-        issuedAt: toIso(new Date()),
-        dueAt: addDays(new Date(), LOAN_WINDOW_DAYS),
+        issuedBy: "",
+        issueRequestedAt: toIso(new Date()),
+        issuedAt: "",
+        dueAt: "",
         returnRequestedAt: "",
         returnedAt: "",
-      };
+      });
 
-      db.loans.unshift(loan);
       pushNotification(db, {
         userId: student.id,
-        title: "Book issued",
-        message: `${book.title} has been issued to your account.`,
-        type: "success",
+        title: "Issue request sent",
+        message: `Your request for ${book.title} is waiting for admin approval.`,
+        type: "info",
+      });
+      pushNotificationsToAdmins(db, {
+        title: "Issue approval needed",
+        message: `${student.name} requested ${book.title}.`,
+        type: "warning",
       });
 
       saveDatabase(db);
 
       return {
-        message: `${book.title} issued successfully.`,
+        message: `Issue request sent for ${book.title}.`,
         user: sanitizeUser(student, db),
       };
     });
@@ -1147,6 +1201,10 @@ const libraryService = {
 
       if (loan.returnedAt) {
         apiError("This loan has already been returned.");
+      }
+
+      if (!loan.issuedAt) {
+        apiError("This issue request has not been approved yet.");
       }
 
       if (loan.returnRequestedAt) {
@@ -1244,7 +1302,7 @@ const libraryService = {
         issues: db.loans
           .filter((loan) => loan.studentId === studentId)
           .map((loan) => enrichLoan(db, loan))
-          .sort((left, right) => new Date(right.issuedAt) - new Date(left.issuedAt)),
+          .sort(sortLoansNewestFirst),
       };
     });
   },
@@ -1545,7 +1603,7 @@ const libraryService = {
         books: clone(db.books),
         loans: db.loans
           .map((loan) => enrichLoan(db, loan))
-          .sort((left, right) => new Date(right.issuedAt) - new Date(left.issuedAt)),
+          .sort(sortLoansNewestFirst),
       };
     });
   },
@@ -1579,6 +1637,7 @@ const libraryService = {
         id: createId("loan"),
         bookId,
         studentId,
+        issueRequestedAt: "",
         issuedBy: admin.id,
         issuedAt: toIso(new Date()),
         dueAt: addDays(new Date(), LOAN_WINDOW_DAYS),
@@ -1599,14 +1658,67 @@ const libraryService = {
     });
   },
 
+  approveIssue(loanId) {
+    return request(() => {
+      const db = getDatabase();
+      const admin = ensureUser(db, "admin");
+      const loan = db.loans.find((item) => item.id === loanId);
+
+      if (!loan) {
+        apiError("Loan record not found.", 404);
+      }
+
+      if (!loan.issueRequestedAt || loan.issuedAt) {
+        apiError("This issue request has already been handled.");
+      }
+
+      const book = getBookById(db, loan.bookId);
+      const student = getUserById(db, loan.studentId);
+
+      if (!book) {
+        apiError("Book not found.", 404);
+      }
+
+      if (!student || student.role !== "student") {
+        apiError("Student not found.", 404);
+      }
+
+      if (book.copiesAvailable <= 0) {
+        apiError("No available copies left for this book.");
+      }
+
+      const issuedAt = toIso(new Date());
+      book.copiesAvailable -= 1;
+      loan.issuedBy = admin.id;
+      loan.issuedAt = issuedAt;
+      loan.dueAt = addDays(new Date(issuedAt), LOAN_WINDOW_DAYS);
+
+      pushNotification(db, {
+        userId: student.id,
+        title: "Issue request approved",
+        message: `${book.title} has been issued to your account.`,
+        type: "success",
+      });
+
+      saveDatabase(db);
+
+      return {
+        message: `${book.title} issued to ${student.name}.`,
+        user: sanitizeUser(admin, db),
+      };
+    });
+  },
+
   getReports() {
     return request(() => {
       const db = getDatabase();
       ensureUser(db, "admin");
       const loans = db.loans
         .map((loan) => enrichLoan(db, loan))
-        .sort((left, right) => new Date(right.issuedAt) - new Date(left.issuedAt));
-      const issuedLoans = loans.filter((loan) => loan.status !== "Returned");
+        .sort(sortLoansNewestFirst);
+      const issuedLoans = loans.filter((loan) =>
+        ["Issued", "Overdue", "Return Requested"].includes(loan.status)
+      );
       const overdueLoans = loans.filter((loan) => loan.status === "Overdue");
       const returnedLoans = loans.filter((loan) => loan.status === "Returned");
 

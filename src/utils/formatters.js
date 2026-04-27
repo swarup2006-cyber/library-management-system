@@ -37,6 +37,10 @@ export const getStatusBadge = (status) => {
     return "issued";
   }
 
+  if (normalized === "issue requested" || normalized === "pending_issue") {
+    return "primary";
+  }
+
   if (
     normalized === "return requested" ||
     normalized === "pending_return" ||

@@ -89,13 +89,23 @@ export default function AdminCirculationPage() {
   );
 
   const activeLoans = useMemo(
-    () => data.loans.filter((loan) => loan.status !== "Returned"),
+    () => data.loans.filter((loan) => ["Issued", "Overdue", "Return Requested"].includes(loan.status)),
+    [data.loans]
+  );
+
+  const pendingIssueRequests = useMemo(
+    () => data.loans.filter((loan) => loan.status === "Issue Requested"),
+    [data.loans]
+  );
+
+  const pendingReturnRequests = useMemo(
+    () => data.loans.filter((loan) => loan.status === "Return Requested"),
     [data.loans]
   );
 
   const pendingApprovals = useMemo(
-    () => activeLoans.filter((loan) => loan.status === "Return Requested"),
-    [activeLoans]
+    () => [...pendingIssueRequests, ...pendingReturnRequests],
+    [pendingIssueRequests, pendingReturnRequests]
   );
 
   const selectedActiveBookIds = useMemo(
@@ -204,6 +214,27 @@ export default function AdminCirculationPage() {
     }
   };
 
+  const handleApproveIssue = async (loan) => {
+    try {
+      setBusyId(loan.id);
+      const response = await libraryService.approveIssue(loan.id);
+      showToast({
+        title: "Issue approved",
+        message: response.message,
+        variant: "success",
+      });
+      await refreshAdminContext(selectedStudentId);
+    } catch (requestError) {
+      showToast({
+        title: "Approval failed",
+        message: requestError.response?.data?.message || "Unable to approve the issue request.",
+        variant: "danger",
+      });
+    } finally {
+      setBusyId("");
+    }
+  };
+
   if (loading) {
     return <Loader label="Loading circulation data..." />;
   }
@@ -213,7 +244,7 @@ export default function AdminCirculationPage() {
       <PageHeader
         eyebrow="Issue / Return"
         title="Manage circulation"
-        description="Selecting a student now reveals the full issue context instantly, so returns and approvals happen from one view."
+        description="Student issue requests now wait for admin approval, and the full circulation context stays in one view."
       />
 
       {error ? <div className="alert alert-danger">{error}</div> : null}
@@ -224,14 +255,14 @@ export default function AdminCirculationPage() {
             <div>
               <h3 className="h5 mb-1">Select student</h3>
               <p className="text-body-secondary mb-0">
-                Choosing a student loads every issued book for that student automatically.
+                Choosing a student loads every request and issued book for that student automatically.
               </p>
             </div>
             {selectedStudent ? (
               <div className="d-flex flex-wrap gap-2">
                 <span className="meta-pill">{selectedStudent.name}</span>
                 <span className="meta-pill">{selectedStudent.studentId || "Student record"}</span>
-                <span className="meta-pill">{selectedStudent.activeLoanCount} active loans</span>
+                <span className="meta-pill">{selectedStudent.activeLoanCount} open items</span>
                 <span className="meta-pill">{formatCurrency(selectedStudent.fineDue)} fine due</span>
               </div>
             ) : null}
@@ -309,7 +340,7 @@ export default function AdminCirculationPage() {
 
         <div className="col-xl-8">
           <div className="row g-3">
-            <div className="col-md-4">
+            <div className="col-md-6 col-xl-3">
               <div className="card border-0 shadow-sm glass-surface">
                 <div className="card-body">
                   <p className="text-body-secondary small mb-1">Active loans</p>
@@ -317,15 +348,23 @@ export default function AdminCirculationPage() {
                 </div>
               </div>
             </div>
-            <div className="col-md-4">
+            <div className="col-md-6 col-xl-3">
               <div className="card border-0 shadow-sm glass-surface">
                 <div className="card-body">
-                  <p className="text-body-secondary small mb-1">Return requests</p>
-                  <h3 className="mb-0">{pendingApprovals.length}</h3>
+                  <p className="text-body-secondary small mb-1">Issue requests</p>
+                  <h3 className="mb-0">{pendingIssueRequests.length}</h3>
                 </div>
               </div>
             </div>
-            <div className="col-md-4">
+            <div className="col-md-6 col-xl-3">
+              <div className="card border-0 shadow-sm glass-surface">
+                <div className="card-body">
+                  <p className="text-body-secondary small mb-1">Return requests</p>
+                  <h3 className="mb-0">{pendingReturnRequests.length}</h3>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-6 col-xl-3">
               <div className="card border-0 shadow-sm glass-surface">
                 <div className="card-body">
                   <p className="text-body-secondary small mb-1">Books available</p>
@@ -336,6 +375,11 @@ export default function AdminCirculationPage() {
               </div>
             </div>
           </div>
+          {pendingApprovals.length ? (
+            <p className="text-body-secondary small mt-3 mb-0">
+              {pendingApprovals.length} approval request{pendingApprovals.length === 1 ? "" : "s"} waiting across the desk.
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -345,6 +389,7 @@ export default function AdminCirculationPage() {
         loading={studentIssuesLoading}
         error={studentIssuesError}
         busyId={busyId}
+        onApproveIssue={handleApproveIssue}
         onReturn={handleReturn}
         onApprove={handleApprove}
       />
