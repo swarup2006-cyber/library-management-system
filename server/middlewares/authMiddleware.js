@@ -3,7 +3,10 @@ const User = require("../models/userModel");
 
 exports.isAuthenticated = async (req, res, next) => {
   try {
-    const token = req.cookies.token;
+    const headerToken = req.headers.authorization?.startsWith("Bearer ")
+      ? req.headers.authorization.slice(7)
+      : "";
+    const token = headerToken || req.cookies.token;
 
     if (!token) {
       return res.status(401).json({ message: "Login required" });

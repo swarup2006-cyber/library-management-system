@@ -1,4 +1,5 @@
 import axios from "axios";
+import API from "./api";
 
 // This file acts as a mock API layer backed by localStorage so the frontend
 // can be fully interactive without requiring any backend changes.
@@ -7,6 +8,8 @@ const SESSION_KEY = "lms_mock_session_v3";
 const NETWORK_DELAY = 320;
 const DAILY_FINE = 15;
 const LOAN_WINDOW_DAYS = 14;
+const BACKEND_AUTH_ENABLED = Boolean((import.meta.env.VITE_API_URL || "").trim());
+const DEMO_AUTH_EMAILS = new Set(["admin@library.local", "student@library.local"]);
 
 const http = axios.create();
 
@@ -572,6 +575,316 @@ const sanitizeUser = (user, db = getDatabase()) => {
   };
 };
 
+const normalizeEmail = (value = "") => value.trim().toLowerCase();
+
+const safeTrim = (value, fallback = "") =>
+  typeof value === "string" ? value.trim() : fallback;
+
+const toFrontendRole = (backendRole) => (backendRole === "admin" ? "admin" : "student");
+
+const buildFallbackStudentId = (backendUserId) =>
+  `STU-${String(backendUserId || createId("user")).slice(-6).toUpperCase()}`;
+
+const isBackendReachabilityError = (error) => Boolean(error?.request) && !error?.response;
+
+const isDemoAuthEmail = (email) => DEMO_AUTH_EMAILS.has(normalizeEmail(email));
+
+const buildResponseError = (message, status = 400) => {
+  const error = new Error(message);
+  error.response = {
+    status,
+    data: { message },
+  };
+  return error;
+};
+
+const getBackendRequestConfig = (token = getSession()?.token) =>
+  token
+    ? {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    : {};
+
+const syncBackendUserToMockDb = (backendUser, { token } = {}) => {
+  if (!backendUser) {
+    return null;
+  }
+
+  const db = getDatabase();
+  const normalizedEmail = normalizeEmail(backendUser.email || "");
+  const frontendRole = toFrontendRole(backendUser.role);
+  let user = db.users.find(
+    (item) =>
+      item.backendUserId === backendUser._id ||
+      item.email.toLowerCase() === normalizedEmail
+  );
+
+  if (!user) {
+    user = {
+      id: createId("user"),
+      joinedAt: backendUser.createdAt || toIso(new Date()),
+      role: frontendRole,
+      blocked: false,
+      verified: true,
+      phone: "",
+      address: "",
+      department: "",
+      studentId: "",
+      bio: "",
+      password: "",
+    };
+    db.users.push(user);
+  }
+
+  Object.assign(user, {
+    backendUserId: backendUser._id,
+    name: safeTrim(backendUser.name, user.name || "Library Member"),
+    email: normalizedEmail,
+    role: frontendRole,
+    verified: backendUser.isVerified !== false,
+    blocked: Boolean(backendUser.isBlocked),
+    phone: safeTrim(backendUser.phone, user.phone || ""),
+    address: safeTrim(backendUser.address, user.address || ""),
+    department: safeTrim(backendUser.department, user.department || ""),
+    studentId:
+      frontendRole === "admin"
+        ? ""
+        : safeTrim(
+            backendUser.studentId,
+            user.studentId || buildFallbackStudentId(backendUser._id)
+          ),
+    bio: safeTrim(backendUser.bio, user.bio || ""),
+    joinedAt: backendUser.createdAt || user.joinedAt || toIso(new Date()),
+  });
+
+  saveDatabase(db);
+  setSession({
+    userId: user.id,
+    authSource: "backend",
+    token: token || getSession()?.token || "",
+  });
+
+  return sanitizeUser(user, db);
+};
+
+const getMockSessionUser = () =>
+  request(() => {
+    const db = getDatabase();
+    const session = getSession();
+
+    if (!session?.userId) {
+      return { user: null };
+    }
+
+    const user = getUserById(db, session.userId);
+
+    if (!user) {
+      setSession(null);
+      return { user: null };
+    }
+
+    return { user: sanitizeUser(user, db) };
+  });
+
+const loginWithMock = ({ email, password, role }) =>
+  request(() => {
+    const db = getDatabase();
+    const normalizedEmail = normalizeEmail(email);
+    const user = db.users.find((item) => item.email.toLowerCase() === normalizedEmail);
+
+    if (!user || user.password !== password) {
+      apiError("Invalid email or password.", 401);
+    }
+
+    if (user.role !== role) {
+      apiError(
+        role === "admin"
+          ? "This account belongs to a student portal."
+          : "This account belongs to the admin portal.",
+        403
+      );
+    }
+
+    if (!user.verified) {
+      apiError("Please verify your account before signing in.", 403);
+    }
+
+    if (user.blocked) {
+      apiError("This account has been blocked. Contact the library desk.", 403);
+    }
+
+    setSession({ userId: user.id, authSource: "local" });
+
+    return {
+      message: `Welcome back, ${user.name}.`,
+      user: sanitizeUser(user, db),
+    };
+  });
+
+const registerStudentWithMock = (payload) =>
+  request(() => {
+    const db = getDatabase();
+    const normalizedEmail = normalizeEmail(payload.email);
+    const existingUser = db.users.find(
+      (user) => user.email.toLowerCase() === normalizedEmail
+    );
+
+    if (existingUser && existingUser.verified) {
+      apiError("A verified account already exists with this email.");
+    }
+
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    const userRecord =
+      existingUser ||
+      ({
+        id: createId("user"),
+        role: "student",
+        joinedAt: toIso(new Date()),
+        blocked: false,
+      });
+
+    Object.assign(userRecord, {
+      name: payload.name.trim(),
+      email: normalizedEmail,
+      password: payload.password,
+      role: "student",
+      verified: false,
+      phone: payload.phone?.trim() || "",
+      address: payload.address?.trim() || "",
+      department: payload.department?.trim() || "",
+      studentId: payload.studentId?.trim() || `STU-${Math.floor(1000 + Math.random() * 9000)}`,
+      bio: "New student member waiting for verification.",
+      otpCode,
+      otpPurpose: "register",
+    });
+
+    if (!existingUser) {
+      db.users.push(userRecord);
+    }
+
+    saveDatabase(db);
+
+    return {
+      message: "Student registration saved. Verify the account to continue.",
+      email: normalizedEmail,
+      otpCode,
+    };
+  });
+
+const verifyOtpWithMock = ({ email, otp, mode = "register", password = "", role = "student" }) =>
+  request(() => {
+    const db = getDatabase();
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedRole = role === "admin" ? "admin" : "student";
+    const user = db.users.find((item) => item.email.toLowerCase() === normalizedEmail);
+
+    if (!user) {
+      apiError("No account was found for this email.", 404);
+    }
+
+    if (mode === "reset" && user.role !== normalizedRole) {
+      apiError("No matching account was found for this portal.", 404);
+    }
+
+    if (user.otpCode !== otp.trim() || user.otpPurpose !== mode) {
+      apiError("The OTP you entered is invalid.");
+    }
+
+    if (mode === "register") {
+      user.verified = true;
+    }
+
+    if (mode === "reset") {
+      if (!password) {
+        apiError("Start the password reset flow again to set a new password.");
+      }
+
+      user.password = password;
+    }
+
+    user.otpCode = "";
+    user.otpPurpose = "";
+
+    saveDatabase(db);
+
+    return {
+      message:
+        mode === "register"
+          ? "Account verified successfully. You can sign in now."
+          : "Password reset complete. Sign in with your new password.",
+    };
+  });
+
+const requestPasswordResetWithMock = ({ email, role }) =>
+  request(() => {
+    const db = getDatabase();
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedRole = role === "admin" ? "admin" : "student";
+    const user = db.users.find((item) => item.email.toLowerCase() === normalizedEmail);
+
+    if (!user || user.role !== normalizedRole) {
+      apiError("No matching account was found for this portal.", 404);
+    }
+
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    user.otpCode = otpCode;
+    user.otpPurpose = "reset";
+    saveDatabase(db);
+
+    return {
+      message: "Demo reset OTP generated. Use it on the verification screen.",
+      email: normalizedEmail,
+      otpCode,
+    };
+  });
+
+const updateProfileWithMock = (payload) =>
+  request(() => {
+    const db = getDatabase();
+    const user = ensureUser(db);
+    const normalizedEmail = normalizeEmail(payload.email);
+    const existingUser = db.users.find(
+      (item) => item.email.toLowerCase() === normalizedEmail && item.id !== user.id
+    );
+
+    if (existingUser) {
+      apiError("Another account is already using this email.");
+    }
+
+    Object.assign(user, {
+      name: payload.name.trim(),
+      email: normalizedEmail,
+      phone: payload.phone?.trim() || "",
+      address: payload.address?.trim() || "",
+      department: payload.department?.trim() || "",
+      bio: payload.bio?.trim() || "",
+    });
+
+    saveDatabase(db);
+
+    return {
+      message: "Profile updated successfully.",
+      user: sanitizeUser(user, db),
+    };
+  });
+
+const changePasswordWithMock = ({ currentPassword, newPassword }) =>
+  request(() => {
+    const db = getDatabase();
+    const user = ensureUser(db);
+
+    if (user.password !== currentPassword) {
+      apiError("Current password is incorrect.");
+    }
+
+    user.password = newPassword;
+    saveDatabase(db);
+
+    return { message: "Password changed successfully." };
+  });
+
 const ensureUser = (db, role) => {
   const session = getSession();
 
@@ -802,62 +1115,100 @@ const libraryService = {
   },
 
   getSessionUser() {
-    return request(() => {
-      const db = getDatabase();
-      const session = getSession();
+    const session = getSession();
 
-      if (!session?.userId) {
-        return { user: null };
-      }
+    if (BACKEND_AUTH_ENABLED && session?.authSource === "backend") {
+      return API.get("/me", getBackendRequestConfig(session.token))
+        .then((response) => ({
+          user: syncBackendUserToMockDb(response.data.user, { token: session.token }),
+        }))
+        .catch((error) => {
+          if (error.response?.status === 401) {
+            setSession(null);
+            return { user: null };
+          }
 
-      const user = getUserById(db, session.userId);
+          if (isBackendReachabilityError(error)) {
+            return getMockSessionUser();
+          }
 
-      if (!user) {
-        setSession(null);
-        return { user: null };
-      }
+          throw error;
+        });
+    }
 
-      return { user: sanitizeUser(user, db) };
-    });
+    return getMockSessionUser();
   },
 
-  login({ email, password, role }) {
-    return request(() => {
-      const db = getDatabase();
-      const normalizedEmail = email.trim().toLowerCase();
-      const user = db.users.find((item) => item.email.toLowerCase() === normalizedEmail);
+  async login({ email, password, role }) {
+    const normalizedEmail = normalizeEmail(email);
 
-      if (!user || user.password !== password) {
-        apiError("Invalid email or password.", 401);
+    if (BACKEND_AUTH_ENABLED) {
+      try {
+        const loginResponse = await API.post("/login", {
+          email: normalizedEmail,
+          password,
+        });
+        const token = loginResponse.data?.token || "";
+        const backendUser = (
+          await API.get("/me", getBackendRequestConfig(token))
+        ).data.user;
+        const frontendRole = toFrontendRole(backendUser.role);
+
+        if (frontendRole !== role) {
+          await API.post("/logout", {}, getBackendRequestConfig(token)).catch(() => {});
+          throw buildResponseError(
+            role === "admin"
+              ? "This account belongs to a student portal."
+              : "This account belongs to the admin portal.",
+            403
+          );
+        }
+
+        const syncedUser = syncBackendUserToMockDb(backendUser, { token });
+
+        return {
+          message: `Welcome back, ${syncedUser.name}.`,
+          user: syncedUser,
+        };
+      } catch (error) {
+        if (isBackendReachabilityError(error)) {
+          if (isDemoAuthEmail(normalizedEmail)) {
+            return loginWithMock({ email: normalizedEmail, password, role });
+          }
+
+          throw buildResponseError(
+            "Account service is not reachable. Start or deploy the backend server and try again.",
+            503
+          );
+        }
+
+        if (isDemoAuthEmail(normalizedEmail)) {
+          return loginWithMock({ email: normalizedEmail, password, role });
+        }
+
+        if (error.response?.data?.message === "Invalid credentials") {
+          throw buildResponseError("Invalid email or password.", 401);
+        }
+
+        throw error;
       }
+    }
 
-      if (user.role !== role) {
-        apiError(
-          role === "admin"
-            ? "This account belongs to a student portal."
-            : "This account belongs to the admin portal.",
-          403
-        );
-      }
-
-      if (!user.verified) {
-        apiError("Please verify your account before signing in.", 403);
-      }
-
-      if (user.blocked) {
-        apiError("This account has been blocked. Contact the library desk.", 403);
-      }
-
-      setSession({ userId: user.id });
-
-      return {
-        message: `Welcome back, ${user.name}.`,
-        user: sanitizeUser(user, db),
-      };
-    });
+    return loginWithMock({ email: normalizedEmail, password, role });
   },
 
   logout() {
+    const session = getSession();
+
+    if (BACKEND_AUTH_ENABLED && session?.authSource === "backend") {
+      return API.post("/logout", {}, getBackendRequestConfig(session.token))
+        .catch(() => null)
+        .then(() => {
+          setSession(null);
+          return { success: true };
+        });
+    }
+
     return request(() => {
       setSession(null);
       return { success: true };
@@ -865,170 +1216,129 @@ const libraryService = {
   },
 
   registerStudent(payload) {
-    return request(() => {
-      const db = getDatabase();
-      const normalizedEmail = payload.email.trim().toLowerCase();
-      const existingUser = db.users.find(
-        (user) => user.email.toLowerCase() === normalizedEmail
-      );
-
-      if (existingUser && existingUser.verified) {
-        apiError("A verified account already exists with this email.");
-      }
-
-      const otpCode = String(Math.floor(100000 + Math.random() * 900000));
-      const userRecord =
-        existingUser ||
-        ({
-          id: createId("user"),
-          role: "student",
-          joinedAt: toIso(new Date()),
-          blocked: false,
-        });
-
-      Object.assign(userRecord, {
-        name: payload.name.trim(),
-        email: normalizedEmail,
+    if (BACKEND_AUTH_ENABLED) {
+      return API.post("/register", {
+        name: payload.name,
+        email: payload.email,
         password: payload.password,
         role: "student",
-        verified: false,
-        phone: payload.phone?.trim() || "",
-        address: payload.address?.trim() || "",
-        department: payload.department?.trim() || "",
-        studentId: payload.studentId?.trim() || `STU-${Math.floor(1000 + Math.random() * 9000)}`,
-        bio: "New student member waiting for verification.",
-        otpCode,
-        otpPurpose: "register",
-      });
+        phone: payload.phone,
+        address: payload.address,
+        department: payload.department,
+        studentId: payload.studentId,
+        bio: payload.bio,
+      })
+        .then((response) => ({
+          message:
+            response.data?.message || "Student registration saved. Verify the account to continue.",
+          email: response.data?.email || normalizeEmail(payload.email),
+          otpCode: response.data?.otpCode || response.data?.devOtp || "",
+        }))
+        .catch((error) => {
+          if (isBackendReachabilityError(error)) {
+            return registerStudentWithMock(payload);
+          }
 
-      if (!existingUser) {
-        db.users.push(userRecord);
-      }
+          throw error;
+        });
+    }
 
-      saveDatabase(db);
-
-      return {
-        message: "Student registration saved. Verify the account to continue.",
-        email: normalizedEmail,
-        otpCode,
-      };
-    });
+    return registerStudentWithMock(payload);
   },
 
   verifyOtp({ email, otp, mode = "register", password = "", role = "student" }) {
-    return request(() => {
-      const db = getDatabase();
-      const normalizedEmail = email.trim().toLowerCase();
-      const normalizedRole = role === "admin" ? "admin" : "student";
-      const user = db.users.find((item) => item.email.toLowerCase() === normalizedEmail);
+    if (BACKEND_AUTH_ENABLED) {
+      const requestPromise =
+        mode === "reset"
+          ? API.post("/password-reset/verify", {
+              email,
+              otp,
+              role,
+              password,
+            })
+          : API.post("/verify-otp", {
+              email,
+              otp,
+            });
 
-      if (!user) {
-        apiError("No account was found for this email.", 404);
-      }
+      return requestPromise
+        .then((response) => ({
+          message:
+            response.data?.message ||
+            (mode === "register"
+              ? "Account verified successfully. You can sign in now."
+              : "Password reset complete. Sign in with your new password."),
+        }))
+        .catch((error) => {
+          if (isBackendReachabilityError(error)) {
+            return verifyOtpWithMock({ email, otp, mode, password, role });
+          }
 
-      if (mode === "reset" && user.role !== normalizedRole) {
-        apiError("No matching account was found for this portal.", 404);
-      }
+          throw error;
+        });
+    }
 
-      if (user.otpCode !== otp.trim() || user.otpPurpose !== mode) {
-        apiError("The OTP you entered is invalid.");
-      }
-
-      if (mode === "register") {
-        user.verified = true;
-      }
-
-      if (mode === "reset") {
-        if (!password) {
-          apiError("Start the password reset flow again to set a new password.");
-        }
-
-        user.password = password;
-      }
-
-      user.otpCode = "";
-      user.otpPurpose = "";
-
-      saveDatabase(db);
-
-      return {
-        message:
-          mode === "register"
-            ? "Account verified successfully. You can sign in now."
-            : "Password reset complete. Sign in with your new password.",
-      };
-    });
+    return verifyOtpWithMock({ email, otp, mode, password, role });
   },
 
   requestPasswordReset({ email, role }) {
-    return request(() => {
-      const db = getDatabase();
-      const normalizedEmail = email.trim().toLowerCase();
-      const normalizedRole = role === "admin" ? "admin" : "student";
-      const user = db.users.find((item) => item.email.toLowerCase() === normalizedEmail);
+    if (BACKEND_AUTH_ENABLED) {
+      return API.post("/password-reset/request", {
+        email,
+        role,
+      })
+        .then((response) => ({
+          message:
+            response.data?.message || "A password reset OTP has been sent to your email address.",
+          email: response.data?.email || normalizeEmail(email),
+          otpCode: response.data?.otpCode || response.data?.devOtp || "",
+        }))
+        .catch((error) => {
+          if (isBackendReachabilityError(error)) {
+            return requestPasswordResetWithMock({ email, role });
+          }
 
-      if (!user || user.role !== normalizedRole) {
-        apiError("No matching account was found for this portal.", 404);
-      }
+          throw error;
+        });
+    }
 
-      const otpCode = String(Math.floor(100000 + Math.random() * 900000));
-      user.otpCode = otpCode;
-      user.otpPurpose = "reset";
-      saveDatabase(db);
-
-      return {
-        message: "Demo reset OTP generated. Use it on the verification screen.",
-        email: normalizedEmail,
-        otpCode,
-      };
-    });
+    return requestPasswordResetWithMock({ email, role });
   },
 
   updateProfile(payload) {
-    return request(() => {
-      const db = getDatabase();
-      const user = ensureUser(db);
-      const normalizedEmail = payload.email.trim().toLowerCase();
-      const existingUser = db.users.find(
-        (item) => item.email.toLowerCase() === normalizedEmail && item.id !== user.id
-      );
+    const session = getSession();
 
-      if (existingUser) {
-        apiError("Another account is already using this email.");
-      }
+    if (BACKEND_AUTH_ENABLED && session?.authSource === "backend") {
+      return API.put(
+        "/me",
+        payload,
+        getBackendRequestConfig(session.token)
+      ).then((response) => ({
+        message: response.data?.message || "Profile updated successfully.",
+        user: syncBackendUserToMockDb(response.data.user, { token: session.token }),
+      }));
+    }
 
-      Object.assign(user, {
-        name: payload.name.trim(),
-        email: normalizedEmail,
-        phone: payload.phone?.trim() || "",
-        address: payload.address?.trim() || "",
-        department: payload.department?.trim() || "",
-        bio: payload.bio?.trim() || "",
-      });
-
-      saveDatabase(db);
-
-      return {
-        message: "Profile updated successfully.",
-        user: sanitizeUser(user, db),
-      };
-    });
+    return updateProfileWithMock(payload);
   },
 
   changePassword({ currentPassword, newPassword }) {
-    return request(() => {
-      const db = getDatabase();
-      const user = ensureUser(db);
+    const session = getSession();
 
-      if (user.password !== currentPassword) {
-        apiError("Current password is incorrect.");
-      }
+    if (BACKEND_AUTH_ENABLED && session?.authSource === "backend") {
+      return API.put(
+        "/change-password",
+        {
+          currentPassword,
+          newPassword,
+        },
+        getBackendRequestConfig(session.token)
+      ).then((response) => ({
+        message: response.data?.message || "Password changed successfully.",
+      }));
+    }
 
-      user.password = newPassword;
-      saveDatabase(db);
-
-      return { message: "Password changed successfully." };
-    });
+    return changePasswordWithMock({ currentPassword, newPassword });
   },
 
   getStudentDashboard() {

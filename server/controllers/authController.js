@@ -9,10 +9,36 @@ const generateOtp = () =>
 const RESET_OTP_WINDOW_MS = 10 * 60 * 1000;
 const hashOtp = (otp) =>
   crypto.createHash("sha256").update(otp).digest("hex");
+const serializeAuthUser = (user) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  isBlocked: user.isBlocked,
+  isVerified: user.isVerified,
+  phone: user.phone || "",
+  address: user.address || "",
+  department: user.department || "",
+  studentId: user.studentId || "",
+  bio: user.bio || "",
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt,
+});
 
 // Register
 exports.register = async (req, res) => {
-  const { name, email, password, role, adminInviteCode } = req.body;
+  const {
+    name,
+    email,
+    password,
+    role,
+    adminInviteCode,
+    phone,
+    address,
+    department,
+    studentId,
+    bio,
+  } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: "Name, email, and password are required." });
@@ -50,6 +76,15 @@ exports.register = async (req, res) => {
   user.email = normalizedEmail;
   user.password = password;
   user.role = requestedRole;
+  user.phone = phone?.trim() || "";
+  user.address = address?.trim() || "";
+  user.department = department?.trim() || "";
+  user.studentId = requestedRole === "admin" ? "" : studentId?.trim() || "";
+  user.bio =
+    bio?.trim() ||
+    (requestedRole === "admin"
+      ? "Administrator account."
+      : "Library member waiting for verification.");
   user.isVerified = false;
   user.verificationOtp = otp;
   user.verificationOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
@@ -61,6 +96,8 @@ exports.register = async (req, res) => {
   res.status(201).json({
     success: true,
     message: "Registration successful. Verify your account with the OTP.",
+    email: normalizedEmail,
+    otpCode: otp,
     devOtp: otp,
   });
 };
@@ -140,11 +177,12 @@ exports.requestPasswordReset = async (req, res) => {
     success: true,
     message: "A password reset OTP has been sent to your email address.",
     email: normalizedEmail,
+    otpCode: otp,
   });
 };
 
 exports.verifyPasswordResetOtp = async (req, res) => {
-  const { email, otp, role } = req.body;
+  const { email, otp, role, password } = req.body;
 
   if (!email || !otp) {
     return res.status(400).json({ message: "Email and OTP are required." });
@@ -175,11 +213,26 @@ exports.verifyPasswordResetOtp = async (req, res) => {
     return res.status(400).json({ message: "Invalid OTP." });
   }
 
+  if (password) {
+    const userRole = normalizedRole === "admin" ? "admin" : "user";
+    const user = await User.findOne({
+      email: normalizedEmail,
+      role: userRole,
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "No matching account was found for this portal." });
+    }
+
+    user.password = password.trim();
+    await user.save();
+  }
+
   await resetOtp.deleteOne();
 
   res.json({
     success: true,
-    message: "OTP verified successfully.",
+    message: password ? "Password reset complete." : "OTP verified successfully.",
   });
 };
 
@@ -221,19 +274,12 @@ exports.logout = async (req, res) => {
 exports.getMe = async (req, res) => {
   res.json({
     success: true,
-    user: {
-      _id: req.user._id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role,
-      isBlocked: req.user.isBlocked,
-      isVerified: req.user.isVerified,
-    },
+    user: serializeAuthUser(req.user),
   });
 };
 
 exports.updateProfile = async (req, res) => {
-  const { name, email } = req.body;
+  const { name, email, phone, address, department, studentId, bio } = req.body;
 
   if (!name || !email) {
     return res.status(400).json({ message: "Name and email are required." });
@@ -251,19 +297,17 @@ exports.updateProfile = async (req, res) => {
 
   req.user.name = name.trim();
   req.user.email = normalizedEmail;
+  req.user.phone = phone?.trim() || "";
+  req.user.address = address?.trim() || "";
+  req.user.department = department?.trim() || "";
+  req.user.studentId = req.user.role === "admin" ? "" : studentId?.trim() || req.user.studentId || "";
+  req.user.bio = bio?.trim() || "";
   await req.user.save();
 
   res.json({
     success: true,
     message: "Profile updated successfully.",
-    user: {
-      _id: req.user._id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role,
-      isBlocked: req.user.isBlocked,
-      isVerified: req.user.isVerified,
-    },
+    user: serializeAuthUser(req.user),
   });
 };
 
