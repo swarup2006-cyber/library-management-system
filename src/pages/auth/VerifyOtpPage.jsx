@@ -20,7 +20,7 @@ export default function VerifyOtpPage() {
             badge: "Verify Reset OTP",
             title: "Confirm the password reset",
             description:
-              "Enter the OTP sent to the user's email address to save the new password.",
+              "Enter the demo OTP generated on the previous screen to save the new password.",
           }
         : {
             badge: "Verify Account",
@@ -98,18 +98,18 @@ export default function VerifyOtpPage() {
       accent={role === "admin" ? "admin" : "student"}
       asideTitle={
         mode === "reset"
-          ? "Enter the OTP sent to the selected email address."
+          ? "Use the demo OTP shown below."
           : "OTP verification is still mocked for account signup."
       }
       asideCopy={
         mode === "reset"
-          ? "Use the code from the inbox to finish the password reset and unlock the new password."
-          : "This keeps the student registration flow working while the password reset flow uses real email delivery."
+          ? "This password reset flow is mocked, so you can use the demo OTP to finish setting the new password."
+          : "This keeps the student registration flow working with a visible demo OTP."
       }
     >
-      {mode === "reset" && location.state?.email ? (
-        <div className="alert alert-info">
-          OTP sent to <strong>{location.state.email}</strong>. Enter it below to continue.
+      {mode === "reset" && location.state?.otpCode ? (
+        <div className="alert alert-warning">
+          <strong>Demo OTP:</strong> {location.state.otpCode}
         </div>
       ) : null}
 

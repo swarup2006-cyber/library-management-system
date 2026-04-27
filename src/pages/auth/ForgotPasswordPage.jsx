@@ -36,10 +36,10 @@ export default function ForgotPasswordPage() {
         ? {
             badge: "Admin Reset",
             title: "Reset the admin password",
-            description: "Send a reset OTP to the admin email address and verify it on the next screen.",
+            description: "Generate a demo reset OTP for the admin portal and verify it on the next screen.",
             asideTitle: "Admin recovery stays separate from student authentication.",
             asideCopy:
-              "A one-time password will be sent to the admin email so the reset stays inside the correct portal flow.",
+              "The reset flow is mocked here, so the demo OTP will be shown on the next screen.",
             accent: "admin",
             loginRoute: "/admin/login",
           }
@@ -47,10 +47,10 @@ export default function ForgotPasswordPage() {
             badge: "Student Reset",
             title: "Reset the student password",
             description:
-              "Send a reset OTP to the student email address and verify it on the next screen.",
+              "Generate a demo reset OTP for the student portal and verify it on the next screen.",
             asideTitle: "Password recovery is built into the student access flow.",
             asideCopy:
-              "Students will receive the OTP in their inbox before setting a new password in the LMS interface.",
+              "Students can use the demo OTP shown on the next screen before setting a new password.",
             accent: "student",
             loginRoute: "/student/login",
           },
@@ -114,8 +114,8 @@ export default function ForgotPasswordPage() {
       });
 
       showToast({
-        title: "OTP sent",
-        message: "Check the user email inbox for the reset OTP, then enter it on the next screen.",
+        title: "Demo OTP ready",
+        message: "Use the demo OTP on the verification screen to finish the password reset.",
         variant: "success",
       });
 
@@ -126,6 +126,7 @@ export default function ForgotPasswordPage() {
           role,
           email: response.email,
           password: form.newPassword,
+          otpCode: response.otpCode,
         },
       });
     } catch (error) {
