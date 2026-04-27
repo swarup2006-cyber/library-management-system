@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Loader from "../../components/Loader";
 import StudentIssuesPanel from "../../components/admin/StudentIssuesPanel";
 import PageHeader from "../../components/common/PageHeader";
+import StatusBadge from "../../components/common/StatusBadge";
+import DataTable from "../../components/tables/DataTable";
 import libraryService from "../../services/libraryService";
 import { useToast } from "../../context/ToastContext";
-import { formatCurrency } from "../../utils/formatters";
+import { formatCurrency, formatDate } from "../../utils/formatters";
 
 export default function AdminCirculationPage() {
   const { showToast } = useToast();
@@ -108,6 +110,19 @@ export default function AdminCirculationPage() {
     [pendingIssueRequests, pendingReturnRequests]
   );
 
+  useEffect(() => {
+    if (selectedStudentId || !pendingApprovals.length) {
+      return;
+    }
+
+    const firstPendingStudentId =
+      pendingApprovals[0].student?.id || pendingApprovals[0].studentId || "";
+
+    if (firstPendingStudentId) {
+      setSelectedStudentId(firstPendingStudentId);
+    }
+  }, [pendingApprovals, selectedStudentId]);
+
   const selectedActiveBookIds = useMemo(
     () =>
       new Set(
@@ -138,6 +153,11 @@ export default function AdminCirculationPage() {
   const handleStudentChange = (event) => {
     const nextStudentId = event.target.value;
     setSelectedStudentId(nextStudentId);
+    setIssueForm({ bookId: "" });
+  };
+
+  const handleReviewStudent = (studentId) => {
+    setSelectedStudentId(studentId);
     setIssueForm({ bookId: "" });
   };
 
@@ -234,6 +254,76 @@ export default function AdminCirculationPage() {
       setBusyId("");
     }
   };
+
+  const pendingApprovalColumns = [
+    {
+      key: "student",
+      label: "Student",
+      render: (row) => (
+        <div>
+          <strong>{row.student?.name || "Student"}</strong>
+          <div className="small text-body-secondary">
+            {row.student?.studentId || row.studentId || "Student record"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "book",
+      label: "Book",
+      render: (row) => (
+        <div>
+          <strong>{row.book?.title || "-"}</strong>
+          <div className="small text-body-secondary">{row.book?.authorName || "-"}</div>
+        </div>
+      ),
+    },
+    {
+      key: "requestedAt",
+      label: "Requested",
+      render: (row) =>
+        formatDate(row.status === "Issue Requested" ? row.issueRequestedAt : row.returnRequestedAt),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: "actions",
+      label: "Action",
+      render: (row) => (
+        <div className="d-flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-secondary"
+            onClick={() => handleReviewStudent(row.student?.id || row.studentId)}
+          >
+            Review student
+          </button>
+          {row.status === "Issue Requested" ? (
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              disabled={busyId === row.id}
+              onClick={() => handleApproveIssue(row)}
+            >
+              {busyId === row.id ? "Approving..." : "Approve Issue"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              disabled={busyId === row.id}
+              onClick={() => handleApprove(row)}
+            >
+              {busyId === row.id ? "Approving..." : "Approve Return"}
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   if (loading) {
     return <Loader label="Loading circulation data..." />;
@@ -382,6 +472,30 @@ export default function AdminCirculationPage() {
           ) : null}
         </div>
       </div>
+
+      <section className="card border-0 shadow-sm glass-surface mt-4">
+        <div className="card-body">
+          <div className="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+            <div>
+              <h3 className="h5 mb-1">Pending approval requests</h3>
+              <p className="text-body-secondary mb-0">
+                Student issue and return requests appear here as soon as they are submitted.
+              </p>
+            </div>
+            <div className="d-flex flex-wrap gap-2">
+              <span className="meta-pill">{pendingIssueRequests.length} issue requests</span>
+              <span className="meta-pill">{pendingReturnRequests.length} return requests</span>
+            </div>
+          </div>
+
+          <DataTable
+            columns={pendingApprovalColumns}
+            rows={pendingApprovals}
+            emptyTitle="No pending requests"
+            emptyDescription="New student issue and return requests will show up here automatically."
+          />
+        </div>
+      </section>
 
       <StudentIssuesPanel
         student={selectedStudent}
