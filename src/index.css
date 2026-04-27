@@ -1054,6 +1054,7 @@ textarea {
   top: 50%;
   right: 0.95rem;
   transform: translateY(-50%);
+  z-index: 2;
   border: 0;
   background: transparent;
   color: #93c5fd;
@@ -1073,8 +1074,11 @@ textarea {
 }
 
 .password-toggle-symbol {
+  display: block;
   width: 1.1rem;
   height: 1.1rem;
+  flex-shrink: 0;
+  overflow: visible;
 }
 
 .password-toggle:hover {

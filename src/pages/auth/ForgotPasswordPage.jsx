@@ -17,9 +17,9 @@ function PasswordVisibilityIcon({ visible }) {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z" />
-      <path d="M12 9.4A2.6 2.6 0 1 1 9.4 12" />
-      {visible ? null : <path d="m4 4 16 16" />}
+      <path d="M2.5 12s3.8-6 9.5-6 9.5 6 9.5 6-3.8 6-9.5 6-9.5-6-9.5-6Z" />
+      <circle cx="12" cy="12" r="2.8" />
+      {visible ? null : <path d="M4 4 20 20" />}
     </svg>
   );
 }
