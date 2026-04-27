@@ -5,6 +5,25 @@ import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { validateEmail, validatePassword } from "../../utils/validators";
 
+function PasswordVisibilityIcon({ visible }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="password-toggle-symbol"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z" />
+      <path d="M12 9.4A2.6 2.6 0 1 1 9.4 12" />
+      {visible ? null : <path d="m4 4 16 16" />}
+    </svg>
+  );
+}
+
 export default function ForgotPasswordPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -45,6 +64,8 @@ export default function ForgotPasswordPage() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const getResetErrorMessage = (error) => {
     if (error.response?.data?.message) {
@@ -53,6 +74,10 @@ export default function ForgotPasswordPage() {
 
     if (error.request) {
       return "Password reset service is not reachable. Start the backend server on port 4000 and try again.";
+    }
+
+    if (error.message) {
+      return error.message;
     }
 
     return "Unable to start password reset.";
@@ -127,14 +152,25 @@ export default function ForgotPasswordPage() {
 
         <div className="form-field">
           <label className="form-label">New password</label>
-          <input
-            type="password"
-            className={`form-control ${errors.newPassword ? "is-invalid" : ""}`}
-            value={form.newPassword}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, newPassword: event.target.value }))
-            }
-          />
+          <div className="password-input-group has-icon-toggle">
+            <input
+              type={showNewPassword ? "text" : "password"}
+              className={`form-control ${errors.newPassword ? "is-invalid" : ""}`}
+              value={form.newPassword}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, newPassword: event.target.value }))
+              }
+            />
+            <button
+              type="button"
+              className="password-toggle password-toggle-icon"
+              onClick={() => setShowNewPassword((current) => !current)}
+              aria-label={showNewPassword ? "Hide new password" : "Show new password"}
+              aria-pressed={showNewPassword}
+            >
+              <PasswordVisibilityIcon visible={showNewPassword} />
+            </button>
+          </div>
           {errors.newPassword ? (
             <div className="invalid-feedback">{errors.newPassword}</div>
           ) : null}
@@ -142,14 +178,25 @@ export default function ForgotPasswordPage() {
 
         <div className="form-field">
           <label className="form-label">Confirm password</label>
-          <input
-            type="password"
-            className={`form-control ${errors.confirmPassword ? "is-invalid" : ""}`}
-            value={form.confirmPassword}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, confirmPassword: event.target.value }))
-            }
-          />
+          <div className="password-input-group has-icon-toggle">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              className={`form-control ${errors.confirmPassword ? "is-invalid" : ""}`}
+              value={form.confirmPassword}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, confirmPassword: event.target.value }))
+              }
+            />
+            <button
+              type="button"
+              className="password-toggle password-toggle-icon"
+              onClick={() => setShowConfirmPassword((current) => !current)}
+              aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+              aria-pressed={showConfirmPassword}
+            >
+              <PasswordVisibilityIcon visible={showConfirmPassword} />
+            </button>
+          </div>
           {errors.confirmPassword ? (
             <div className="invalid-feedback">{errors.confirmPassword}</div>
           ) : null}

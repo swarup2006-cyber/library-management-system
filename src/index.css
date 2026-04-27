@@ -1045,6 +1045,10 @@ textarea {
   padding-right: 5rem;
 }
 
+.password-input-group.has-icon-toggle .form-control {
+  padding-right: 3.35rem;
+}
+
 .password-toggle {
   position: absolute;
   top: 50%;
@@ -1057,6 +1061,20 @@ textarea {
   font-weight: 600;
   line-height: 1;
   padding: 0.2rem 0.35rem;
+}
+
+.password-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+}
+
+.password-toggle-symbol {
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .password-toggle:hover {
