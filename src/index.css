@@ -208,6 +208,31 @@ body,
   border-radius: 999px;
 }
 
+.topbar-icon-button {
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.topbar-icon-button.has-unread {
+  border-color: rgba(248, 113, 113, 0.3);
+  box-shadow: 0 0 0 0.2rem rgba(239, 68, 68, 0.08);
+}
+
+.topbar-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex-shrink: 0;
+}
+
+.topbar-notification-badge {
+  min-width: 1.2rem;
+  padding-inline: 0.35rem;
+}
+
 .avatar-pill {
   width: 2.5rem;
   height: 2.5rem;
@@ -218,6 +243,7 @@ body,
   background: rgba(59, 130, 246, 0.16);
   color: #dbeafe;
   font-weight: 700;
+  text-decoration: none;
 }
 
 [data-theme="light"] .avatar-pill {

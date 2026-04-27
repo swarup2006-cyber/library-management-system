@@ -8,12 +8,13 @@ import { useToast } from "../../context/ToastContext";
 import { formatDate } from "../../utils/formatters";
 
 export default function StudentNotificationsPage() {
-  const { refreshUser } = useAuth();
+  const { refreshUser, user } = useAuth();
   const { showToast } = useToast();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
+  const isAdmin = user?.role === "admin";
 
   const loadNotifications = async () => {
     try {
@@ -61,8 +62,12 @@ export default function StudentNotificationsPage() {
     <>
       <PageHeader
         eyebrow="Notifications"
-        title="Due alerts and messages"
-        description="Read and clear reminders related to borrowing activity."
+        title={isAdmin ? "Admin alerts and requests" : "Due alerts and messages"}
+        description={
+          isAdmin
+            ? "Review request approvals, circulation signals, and system messages."
+            : "Read and clear reminders related to borrowing activity."
+        }
       />
 
       {error ? <div className="alert alert-danger">{error}</div> : null}

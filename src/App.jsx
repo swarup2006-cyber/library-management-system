@@ -83,6 +83,11 @@ const adminNavItems = [
     description: "Issued books, overdue, and fines",
   },
   {
+    to: "/admin/notifications",
+    label: "Notifications",
+    description: "Requests, alerts, and admin messages",
+  },
+  {
     to: "/admin/profile",
     label: "Profile",
     description: "Admin details and password",
@@ -164,6 +169,7 @@ function AppRoutes() {
           <Route path="/admin/students" element={<AdminStudentsPage />} />
           <Route path="/admin/circulation" element={<AdminCirculationPage />} />
           <Route path="/admin/reports" element={<AdminReportsPage />} />
+          <Route path="/admin/notifications" element={<StudentNotificationsPage />} />
           <Route path="/admin/profile" element={<AdminProfilePage />} />
         </Route>
       </Route>
