@@ -124,9 +124,9 @@ exports.requestPasswordReset = async (req, res) => {
       expiresAt: new Date(Date.now() + RESET_OTP_WINDOW_MS),
     },
     {
-      new: true,
       upsert: true,
       setDefaultsOnInsert: true,
+      returnDocument: "after",
     }
   );
 
