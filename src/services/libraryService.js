@@ -668,12 +668,7 @@ const getBackendRequestConfig = (token = getSession()?.token) =>
       }
     : {};
 
-const syncBackendUserToMockDb = (backendUser, { token } = {}) => {
-  if (!backendUser) {
-    return null;
-  }
-
-  const db = getDatabase();
+const upsertBackendUserInDb = (db, backendUser) => {
   const normalizedEmail = normalizeEmail(backendUser.email || "");
   const frontendRole = toFrontendRole(backendUser.role);
   let user = db.users.find(
@@ -720,15 +715,52 @@ const syncBackendUserToMockDb = (backendUser, { token } = {}) => {
     joinedAt: backendUser.createdAt || user.joinedAt || toIso(new Date()),
   });
 
+  return user;
+};
+
+const syncBackendUserToMockDb = (backendUser, { token, persistSession = true } = {}) => {
+  if (!backendUser) {
+    return null;
+  }
+
+  const db = getDatabase();
+  const user = upsertBackendUserInDb(db, backendUser);
   saveDatabase(db);
-  setSession({
-    userId: user.id,
-    authSource: "backend",
-    token: token || getSession()?.token || "",
-  });
+
+  if (persistSession) {
+    setSession({
+      userId: user.id,
+      authSource: "backend",
+      token: token || getSession()?.token || "",
+    });
+  }
 
   return sanitizeUser(user, db);
 };
+
+const syncBackendUsersToMockDb = (backendUsers = []) => {
+  const db = getDatabase();
+  const syncedUsers = backendUsers
+    .map((backendUser) => {
+      if (!backendUser?._id) {
+        return null;
+      }
+
+      const user = upsertBackendUserInDb(db, backendUser);
+      return sanitizeUser(user, db);
+    })
+    .filter(Boolean);
+
+  saveDatabase(db);
+  return syncedUsers;
+};
+
+const getBackendUsers = (token = getSession()?.token) =>
+  API.get("/users", getBackendRequestConfig(token)).then((response) =>
+    syncBackendUsersToMockDb(
+      Array.isArray(response.data?.users) ? response.data.users : []
+    )
+  );
 
 const getMockSessionUser = () =>
   request(() => {
@@ -1404,6 +1436,26 @@ const libraryService = {
   },
 
   getAdminDashboard() {
+    const session = getSession();
+
+    if (BACKEND_AUTH_ENABLED && session?.authSource === "backend") {
+      return getBackendUsers(session.token)
+        .catch((error) => {
+          if (isBackendReachabilityError(error)) {
+            return [];
+          }
+
+          throw error;
+        })
+        .then(() =>
+          request(() => {
+            const db = getDatabase();
+            ensureUser(db, "admin");
+            return buildAdminDashboard(db);
+          })
+        );
+    }
+
     return request(() => {
       const db = getDatabase();
       ensureUser(db, "admin");
@@ -1672,6 +1724,34 @@ const libraryService = {
   },
 
   getStudents() {
+    const session = getSession();
+
+    if (BACKEND_AUTH_ENABLED && session?.authSource === "backend") {
+      return getBackendUsers(session.token)
+        .then((users) => ({
+          students: users
+            .filter((user) => user.role === "student")
+            .sort((left, right) => left.name.localeCompare(right.name)),
+        }))
+        .catch((error) => {
+          if (isBackendReachabilityError(error)) {
+            return request(() => {
+              const db = getDatabase();
+              ensureUser(db, "admin");
+
+              return {
+                students: db.users
+                  .filter((user) => user.role === "student")
+                  .map((student) => sanitizeUser(student, db))
+                  .sort((left, right) => left.name.localeCompare(right.name)),
+              };
+            });
+          }
+
+          throw error;
+        });
+    }
+
     return request(() => {
       const db = getDatabase();
       ensureUser(db, "admin");

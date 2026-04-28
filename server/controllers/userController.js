@@ -9,12 +9,20 @@ const serializeUser = (user) => ({
   role: user.role,
   isBlocked: user.isBlocked,
   isVerified: user.isVerified,
+  phone: user.phone || "",
+  address: user.address || "",
+  department: user.department || "",
+  studentId: user.studentId || "",
+  bio: user.bio || "",
   createdAt: user.createdAt,
+  updatedAt: user.updatedAt,
 });
 
 exports.listUsers = async (req, res) => {
   const users = await User.find()
-    .select("_id name email role isBlocked isVerified createdAt")
+    .select(
+      "_id name email role isBlocked isVerified phone address department studentId bio createdAt updatedAt"
+    )
     .sort({ role: -1, name: 1 });
 
   res.json({ success: true, users });
