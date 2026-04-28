@@ -1,5 +1,5 @@
 import axios from "axios";
-import API from "./api";
+import API, { API_BASE_URL } from "./api";
 
 // This file acts as a mock API layer backed by localStorage so the frontend
 // can be fully interactive without requiring any backend changes.
@@ -9,7 +9,6 @@ const NETWORK_DELAY = 320;
 const DAILY_FINE = 15;
 const LOAN_WINDOW_DAYS = 14;
 const DEMO_AUTH_EMAILS = new Set(["admin@library.local", "student@library.local"]);
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").trim();
 const BACKEND_AUTH_FLAG = String(import.meta.env.VITE_ENABLE_BACKEND_AUTH || "")
   .trim()
   .toLowerCase();
