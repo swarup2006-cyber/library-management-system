@@ -35,8 +35,23 @@ export default function AdminDashboardPage() {
 
     loadDashboard();
 
+    const handleRefresh = () => {
+      loadDashboard();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadDashboard();
+      }
+    };
+
+    window.addEventListener("focus", handleRefresh);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       mounted = false;
+      window.removeEventListener("focus", handleRefresh);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 

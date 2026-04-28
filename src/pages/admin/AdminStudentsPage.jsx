@@ -28,6 +28,24 @@ export default function AdminStudentsPage() {
 
   useEffect(() => {
     loadStudents();
+
+    const handleRefresh = () => {
+      loadStudents();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        loadStudents();
+      }
+    };
+
+    window.addEventListener("focus", handleRefresh);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleRefresh);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   const filteredStudents = useMemo(() => {
