@@ -8,8 +8,69 @@ const SESSION_KEY = "lms_mock_session_v3";
 const NETWORK_DELAY = 320;
 const DAILY_FINE = 15;
 const LOAN_WINDOW_DAYS = 14;
-const BACKEND_AUTH_ENABLED = Boolean((import.meta.env.VITE_API_URL || "").trim());
 const DEMO_AUTH_EMAILS = new Set(["admin@library.local", "student@library.local"]);
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "").trim();
+const BACKEND_AUTH_FLAG = String(import.meta.env.VITE_ENABLE_BACKEND_AUTH || "")
+  .trim()
+  .toLowerCase();
+
+const isLoopbackHost = (hostname = "") => {
+  const normalizedHost = hostname.toLowerCase();
+  return normalizedHost === "localhost" || normalizedHost === "127.0.0.1" || normalizedHost === "::1";
+};
+
+const isPrivateIpHost = (hostname = "") =>
+  /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+  /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+  /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname);
+
+const parseBooleanEnv = (value) => {
+  if (["1", "true", "yes", "on"].includes(value)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(value)) {
+    return false;
+  }
+
+  return null;
+};
+
+const shouldUseBackendAuth = () => {
+  const explicitPreference = parseBooleanEnv(BACKEND_AUTH_FLAG);
+
+  if (explicitPreference === false || !API_BASE_URL) {
+    return false;
+  }
+
+  if (typeof window === "undefined") {
+    return explicitPreference === true;
+  }
+
+  try {
+    const apiUrl = new URL(API_BASE_URL, window.location.origin);
+    const appHost = window.location.hostname.toLowerCase();
+    const apiHost = apiUrl.hostname.toLowerCase();
+
+    if (explicitPreference === true) {
+      return true;
+    }
+
+    if (isLoopbackHost(apiHost)) {
+      return isLoopbackHost(appHost);
+    }
+
+    if (isPrivateIpHost(apiHost)) {
+      return apiHost === appHost;
+    }
+
+    return true;
+  } catch {
+    return explicitPreference === true;
+  }
+};
+
+const BACKEND_AUTH_ENABLED = shouldUseBackendAuth();
 
 const http = axios.create();
 
@@ -1172,14 +1233,7 @@ const libraryService = {
         };
       } catch (error) {
         if (isBackendReachabilityError(error)) {
-          if (isDemoAuthEmail(normalizedEmail)) {
-            return loginWithMock({ email: normalizedEmail, password, role });
-          }
-
-          throw buildResponseError(
-            "Account service is not reachable. Start or deploy the backend server and try again.",
-            503
-          );
+          return loginWithMock({ email: normalizedEmail, password, role });
         }
 
         if (isDemoAuthEmail(normalizedEmail)) {
